@@ -6,6 +6,11 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		275E623630502324005A3F2D /* Secrets.example.xcconfig in Resources */ = {isa = PBXBuildFile; fileRef = 275E623530502324005A3F2D /* Secrets.example.xcconfig */; };
+		275E62383050247A005A3F2D /* Secrets.xcconfig in Resources */ = {isa = PBXBuildFile; fileRef = 275E62373050247A005A3F2D /* Secrets.xcconfig */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		275E620130502019005A3F2D /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -27,6 +32,8 @@
 		275E61F330502017005A3F2D /* PhotoFeed.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PhotoFeed.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		275E620030502019005A3F2D /* PhotoFeedTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = PhotoFeedTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		275E620A30502019005A3F2D /* PhotoFeedUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = PhotoFeedUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		275E623530502324005A3F2D /* Secrets.example.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Secrets.example.xcconfig; sourceTree = "<group>"; };
+		275E62373050247A005A3F2D /* Secrets.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Secrets.xcconfig; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -75,6 +82,8 @@
 		275E61EA30502017005A3F2D = {
 			isa = PBXGroup;
 			children = (
+				275E623530502324005A3F2D /* Secrets.example.xcconfig */,
+				275E62373050247A005A3F2D /* Secrets.xcconfig */,
 				275E61F530502017005A3F2D /* PhotoFeed */,
 				275E620330502019005A3F2D /* PhotoFeedTests */,
 				275E620D30502019005A3F2D /* PhotoFeedUITests */,
@@ -212,6 +221,8 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				275E623630502324005A3F2D /* Secrets.example.xcconfig in Resources */,
+				275E62383050247A005A3F2D /* Secrets.xcconfig in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
