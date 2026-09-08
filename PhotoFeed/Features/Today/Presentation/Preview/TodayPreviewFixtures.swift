@@ -63,19 +63,20 @@ enum TodayPreviewFixtures {
 
     nonisolated struct PreviewPhotosRepository: PhotosRepository {
         let photos: [Photo]
+        let sponsoredPhotos: [Photo]
 
         func photos(page: Int, perPage: Int) async throws -> [Photo] {
             Array(photos.prefix(perPage))
         }
 
         func sponsoredPhotos(count: Int) async throws -> [Photo] {
-            Array(photos.prefix(count))
+            Array(sponsoredPhotos.prefix(count))
         }
     }
 
     @MainActor
     static func makeViewModel() -> TodayViewModel {
-        TodayViewModel(repository: PreviewPhotosRepository(photos: photos))
+        TodayViewModel(repository: PreviewPhotosRepository(photos: photos, sponsoredPhotos: photos))
     }
 }
 
