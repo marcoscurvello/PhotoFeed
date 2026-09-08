@@ -101,9 +101,11 @@ final class TodayViewModel {
     }
 
     private func insertPendingSponsoredPhotosIfPossible() {
-        while let photo = pendingSponsoredPhotos.first {
-            let visibleIndex = currentVisibleIndex
+        guard let visibleIndex = currentVisibleIndex else {
+            return
+        }
 
+        while let photo = pendingSponsoredPhotos.first {
             guard let insertionIndex = insertionPolicy.insertionIndex(in: items, currentVisibleIndex: visibleIndex) else {
                 return
             }
@@ -113,12 +115,11 @@ final class TodayViewModel {
         }
     }
 
-    private var currentVisibleIndex: Int {
-        guard let currentVisibleItemID,
-              let index = items.firstIndex(where: { $0.id == currentVisibleItemID }) else {
-            return 0
+    private var currentVisibleIndex: Int? {
+        guard let currentVisibleItemID else {
+            return nil
         }
 
-        return index
+        return items.firstIndex { $0.id == currentVisibleItemID }
     }
 }
