@@ -14,8 +14,7 @@ struct UnsplashFixtureTests {
 
     @Test
     func decodesTodayPhotos() throws {
-        let photos: [PhotoDTO] = try FixtureLoader()
-            .load(named: "today_photos")
+        let photos: [PhotoDTO] = try FixtureLoader().load(named: "today_photos")
 
         #expect(!photos.isEmpty)
         #expect(photos[0].id == "today-001")
