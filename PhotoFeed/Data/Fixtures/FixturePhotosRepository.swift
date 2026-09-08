@@ -27,4 +27,9 @@ nonisolated struct FixturePhotosRepository: PhotosRepository {
         let photos: [PhotoDTO] = try loader.load(named: "today_photos")
         return photos.prefix(perPage).map { $0.domainModel() }
     }
+
+    func sponsoredPhotos(count: Int) async throws -> [Photo] {
+        let photos: [PhotoDTO] = try loader.load(named: "sponsored_photos")
+        return photos.prefix(count).map { $0.domainModel() }
+    }
 }

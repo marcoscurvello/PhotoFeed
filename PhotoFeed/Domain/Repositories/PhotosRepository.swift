@@ -9,4 +9,5 @@ import Foundation
 
 nonisolated protocol PhotosRepository: Sendable {
     func photos(page: Int, perPage: Int) async throws -> [Photo]
+    func sponsoredPhotos(count: Int) async throws -> [Photo]
 }

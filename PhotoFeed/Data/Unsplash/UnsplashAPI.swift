@@ -7,6 +7,10 @@
 
 import Foundation
 
+nonisolated enum UnsplashAPIError: Error, Equatable {
+    case invalidRandomPhotoCount(Int)
+}
+
 nonisolated struct UnsplashAPI: Sendable {
 
     private let client: HTTPClient
@@ -23,6 +27,23 @@ nonisolated struct UnsplashAPI: Sendable {
             queryItems: [
                 URLQueryItem(name: "page", value: String(page)),
                 URLQueryItem(name: "per_page", value: String(perPage))
+            ],
+            headers: defaultHeaders
+        )
+
+        let photos: [PhotoDTO] = try await client.send(request)
+        return photos
+    }
+
+    func randomPhotos(count: Int) async throws -> [PhotoDTO] {
+        guard (1...30).contains(count) else {
+            throw UnsplashAPIError.invalidRandomPhotoCount(count)
+        }
+
+        let request = HTTPRequest(
+            path: "photos/random",
+            queryItems: [
+                URLQueryItem(name: "count", value: String(count))
             ],
             headers: defaultHeaders
         )

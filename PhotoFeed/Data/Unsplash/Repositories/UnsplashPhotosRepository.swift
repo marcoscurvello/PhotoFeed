@@ -19,4 +19,9 @@ nonisolated struct UnsplashPhotosRepository: PhotosRepository {
         let photos = try await api.photos(page: page, perPage: perPage)
         return photos.map { $0.domainModel() }
     }
+
+    func sponsoredPhotos(count: Int) async throws -> [Photo] {
+        let photos = try await api.randomPhotos(count: count)
+        return photos.map { $0.domainModel() }
+    }
 }
