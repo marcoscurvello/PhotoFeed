@@ -8,17 +8,24 @@
 import SwiftUI
 
 struct ContentView: View {
+
+    let todayViewModel: TodayViewModel
+    let imagePipeline: RemoteImagePipeline
+
     var body: some View {
-        VStack {
-            Image(systemName: "globe")
-                .imageScale(.large)
-                .foregroundStyle(.tint)
-            Text("Hello, world!")
+        NavigationStack {
+            TodayView(viewModel: todayViewModel, imagePipeline: imagePipeline) { _ in
+                // Detail navigation
+            }
         }
-        .padding()
     }
 }
 
 #Preview {
-    ContentView()
+    let dependencies = AppDependencies.fixture()
+
+    ContentView(
+        todayViewModel: dependencies.todayViewModel,
+        imagePipeline: dependencies.imagePipeline
+    )
 }
