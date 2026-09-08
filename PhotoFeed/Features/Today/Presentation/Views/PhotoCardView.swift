@@ -11,7 +11,20 @@ struct PhotoCardView: View {
 
     let photo: Photo
     let imagePipeline: RemoteImagePipeline
+    let isSponsored: Bool
     let action: () -> Void
+
+    init(
+        photo: Photo,
+        imagePipeline: RemoteImagePipeline,
+        isSponsored: Bool = false,
+        action: @escaping () -> Void
+    ) {
+        self.photo = photo
+        self.imagePipeline = imagePipeline
+        self.isSponsored = isSponsored
+        self.action = action
+    }
 
     var body: some View {
         Button(action: action) {
@@ -23,7 +36,7 @@ struct PhotoCardView: View {
                             ProgressView()
                         }
                 }
-                .frame(maxWidth: .infinity)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .frame(height: 460)
                 .clipped()
 
@@ -34,10 +47,26 @@ struct PhotoCardView: View {
                 )
 
                 metadata
+                    .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(20)
+            }
+            .frame(maxWidth: .infinity)
+            .frame(height: 460)
+            .overlay(alignment: .topTrailing) {
+                if isSponsored {
+                    Text("Sponsored")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 7)
+                        .background(.black.opacity(0.55))
+                        .clipShape(Capsule())
+                        .padding(16)
+                }
             }
             .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
         }
+        .frame(maxWidth: .infinity)
         .buttonStyle(.plain)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(accessibilityLabel)
@@ -59,18 +88,26 @@ struct PhotoCardView: View {
     }
 
     private var accessibilityLabel: String {
-        if let description = photo.description {
-            return "\(description), photo by \(photo.user.name)"
-        }
+        let attribution = photo.description.map { "\($0), photo by \(photo.user.name)" } ?? "Photo by \(photo.user.name)"
 
-        return "Photo by \(photo.user.name)"
+        return isSponsored ? "Sponsored, \(attribution)" : attribution
     }
 }
 
-#Preview {
+#Preview("Organic") {
     PhotoCardView(
         photo: TodayPreviewFixtures.photo,
         imagePipeline: TodayPreviewFixtures.imagePipeline,
+        action: {}
+    )
+    .padding()
+}
+
+#Preview("Sponsored") {
+    PhotoCardView(
+        photo: TodayPreviewFixtures.photo,
+        imagePipeline: TodayPreviewFixtures.imagePipeline,
+        isSponsored: true,
         action: {}
     )
     .padding()
