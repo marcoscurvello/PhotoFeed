@@ -13,27 +13,34 @@ struct TodayView: View {
     let imagePipeline: RemoteImagePipeline
     let onSelect: (Photo) -> Void
 
+    @State private var currentVisibleItemID: TodayFeedItem.ID?
+
     var body: some View {
         ScrollView {
             LazyVStack(spacing: 24) {
                 header
 
-                if viewModel.isLoading && viewModel.photos.isEmpty {
+                if viewModel.isLoading && viewModel.items.isEmpty {
                     ProgressView()
                         .frame(maxWidth: .infinity)
                         .padding(.top, 80)
-                } else if let errorMessage = viewModel.errorMessage, viewModel.photos.isEmpty {
+                } else if let errorMessage = viewModel.errorMessage, viewModel.items.isEmpty {
                     errorView(message: errorMessage)
                 } else {
                     photoFeed
                 }
             }
+            .scrollTargetLayout()
             .padding(.horizontal, 20)
             .padding(.bottom, 24)
         }
+        .scrollPosition(id: $currentVisibleItemID, anchor: .top)
         .scrollIndicators(.hidden)
         .task {
             await viewModel.load()
+        }
+        .onChange(of: currentVisibleItemID) { _, id in
+            viewModel.updateCurrentVisibleItem(id)
         }
     }
 
@@ -50,10 +57,15 @@ struct TodayView: View {
         .padding(.top, 12)
     }
 
+    @ViewBuilder
     private var photoFeed: some View {
-        ForEach(viewModel.photos) { photo in
-            PhotoCardView(photo: photo, imagePipeline: imagePipeline) {
-                onSelect(photo)
+        ForEach(viewModel.items) { item in
+            PhotoCardView(
+                photo: item.photo,
+                imagePipeline: imagePipeline,
+                isSponsored: item.isSponsored
+            ) {
+                onSelect(item.photo)
             }
         }
     }
