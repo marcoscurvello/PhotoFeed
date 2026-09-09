@@ -54,6 +54,10 @@ actor RemoteImagePipeline {
         }
     }
 
+    func removeCachedData(for url: URL) {
+        cache.removeObject(forKey: url as NSURL)
+    }
+
     func removeAllCachedData() {
         cache.removeAllObjects()
     }
