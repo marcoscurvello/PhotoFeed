@@ -53,7 +53,11 @@ struct RemoteImageView<Placeholder: View>: View {
                 .aspectRatio(contentMode: contentMode)
 
         case .failure:
-            placeholder()
+            Image(systemName: "photo")
+                .resizable()
+                .scaledToFit()
+                .foregroundStyle(.secondary)
+                .padding()
         }
     }
 
@@ -68,10 +72,11 @@ struct RemoteImageView<Placeholder: View>: View {
             }
 
             guard let image = UIImage(data: data) else {
+                await pipeline.removeCachedData(for: url)
                 phase = .failure
                 return
             }
-            
+
             phase = .success(Image(uiImage: image))
         } catch {
             guard !Task.isCancelled else {

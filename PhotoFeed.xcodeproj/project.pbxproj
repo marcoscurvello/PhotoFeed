@@ -6,11 +6,6 @@
 	objectVersion = 77;
 	objects = {
 
-/* Begin PBXBuildFile section */
-		275E623630502324005A3F2D /* Secrets.example.xcconfig in Resources */ = {isa = PBXBuildFile; fileRef = 275E623530502324005A3F2D /* Secrets.example.xcconfig */; };
-		275E62383050247A005A3F2D /* Secrets.xcconfig in Resources */ = {isa = PBXBuildFile; fileRef = 275E62373050247A005A3F2D /* Secrets.xcconfig */; };
-/* End PBXBuildFile section */
-
 /* Begin PBXContainerItemProxy section */
 		275E620130502019005A3F2D /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -52,11 +47,6 @@
 			path = PhotoFeedTests;
 			sourceTree = "<group>";
 		};
-		275E620D30502019005A3F2D /* PhotoFeedUITests */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = PhotoFeedUITests;
-			sourceTree = "<group>";
-		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -84,7 +74,6 @@
 				275E62373050247A005A3F2D /* Secrets.xcconfig */,
 				275E61F530502017005A3F2D /* PhotoFeed */,
 				275E620330502019005A3F2D /* PhotoFeedTests */,
-				275E620D30502019005A3F2D /* PhotoFeedUITests */,
 				275E61F430502017005A3F2D /* Products */,
 			);
 			sourceTree = "<group>";
@@ -190,8 +179,6 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				275E623630502324005A3F2D /* Secrets.example.xcconfig in Resources */,
-				275E62383050247A005A3F2D /* Secrets.xcconfig in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -358,7 +345,7 @@
 		275E621530502019005A3F2D /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_APPICON_NAME = PhotoFeed;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
@@ -393,7 +380,7 @@
 		275E621630502019005A3F2D /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_APPICON_NAME = PhotoFeed;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
