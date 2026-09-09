@@ -18,7 +18,21 @@ struct UnsplashFixtureTests {
 
         #expect(!photos.isEmpty)
         #expect(photos[0].id == "oTDuuLUhH20")
+        #expect(photos[0].user.name == "Microsoft Copilot")
         #expect(photos[0].user.username == "microsoftcopilot")
         #expect(photos[0].urls.regular.host == "images.unsplash.com")
+    }
+
+    @Test("Photo statistics fixture decodes")
+    func decodesPhotoStatisticsFixture() throws {
+        let statistics: PhotoStatisticsDTO = try FixtureLoader().load(named: "photo_statistics")
+
+        #expect(statistics.id == "pqaA_SBjgEs")
+        #expect(statistics.views.total == 147_214)
+        #expect(statistics.views.historical.change == 1_705)
+        #expect(statistics.views.historical.quantity == 30)
+        #expect(statistics.downloads.total == 461)
+        #expect(statistics.downloads.historical.change == 24)
+        #expect(statistics.likes == nil)
     }
 }
