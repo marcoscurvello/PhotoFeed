@@ -8,25 +8,19 @@
 import Foundation
 
 nonisolated struct PhotoStatisticsDTO: Decodable, Sendable {
+
     let id: String
-    let downloads: StatisticDTO
-    let views: StatisticDTO
-    let likes: StatisticDTO
-}
+    let views: MetricDTO
+    let likes: MetricDTO?
+    let downloads: MetricDTO
 
-nonisolated struct StatisticDTO: Decodable, Sendable {
-    let total: Int
-    let historical: HistoricalStatisticDTO
-}
+    nonisolated struct MetricDTO: Decodable, Sendable {
+        let total: Int
+        let historical: HistoricalDTO
+    }
 
-nonisolated struct HistoricalStatisticDTO: Decodable, Sendable {
-    let change: Int
-    let resolution: String
-    let quantity: Int
-    let values: [StatisticValueDTO]
-}
-
-nonisolated struct StatisticValueDTO: Decodable, Sendable {
-    let date: String
-    let value: Int
+    nonisolated struct HistoricalDTO: Decodable, Sendable {
+        let change: Int
+        let quantity: Int
+    }
 }
