@@ -9,23 +9,43 @@ import SwiftUI
 
 struct ContentView: View {
 
-    let todayViewModel: TodayViewModel
-    let imagePipeline: RemoteImagePipeline
+    let dependencies: AppDependencies
+
+    @State private var selectedPhoto: Photo?
 
     var body: some View {
         NavigationStack {
-            TodayView(viewModel: todayViewModel, imagePipeline: imagePipeline) { _ in
-                // Detail navigation
+            TodayView(
+                viewModel: dependencies.todayViewModel,
+                imagePipeline: dependencies.imagePipeline
+            ) { photo in
+                selectedPhoto = photo
+            }
+            .navigationDestination(isPresented: isShowingDetail) {
+                if let selectedPhoto {
+                    DetailView(
+                        viewModel: dependencies.makeDetailViewModel(for: selectedPhoto),
+                        imagePipeline: dependencies.imagePipeline
+                    )
+                }
             }
         }
+    }
+
+    private var isShowingDetail: Binding<Bool> {
+        Binding(
+            get: {
+                selectedPhoto != nil
+            },
+            set: { isPresented in
+                if !isPresented {
+                    selectedPhoto = nil
+                }
+            }
+        )
     }
 }
 
 #Preview {
-    let dependencies = AppDependencies.fixture()
-
-    ContentView(
-        todayViewModel: dependencies.todayViewModel,
-        imagePipeline: dependencies.imagePipeline
-    )
+    ContentView(dependencies: .fixture())
 }
