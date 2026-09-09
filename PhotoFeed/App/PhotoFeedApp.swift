@@ -11,23 +11,18 @@ import SwiftUI
 struct PhotoFeedApp: App {
 
     private let dependencies: AppDependencies
-//    private let dependencies = AppDependencies.fixture()
 
     init() {
         do {
             dependencies = try AppDependencies.live()
         } catch {
-            // Gotta handle this
             fatalError("Failed to configure PhotoFeed: \(error)")
         }
     }
 
     var body: some Scene {
         WindowGroup {
-            ContentView(
-                todayViewModel: dependencies.todayViewModel,
-                imagePipeline: dependencies.imagePipeline
-            )
+            ContentView(dependencies: dependencies)
         }
     }
 }
