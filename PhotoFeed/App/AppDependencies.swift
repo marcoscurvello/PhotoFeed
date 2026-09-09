@@ -13,9 +13,16 @@ struct AppDependencies {
     let todayViewModel: TodayViewModel
     let imagePipeline: RemoteImagePipeline
 
-    init(repository: any PhotosRepository) {
+    private let repository: any PhotosRepository & PhotoDetailRepository
+
+    init(repository: any PhotosRepository & PhotoDetailRepository) {
+        self.repository = repository
         todayViewModel = TodayViewModel(repository: repository)
         imagePipeline = RemoteImagePipeline()
+    }
+
+    func makeDetailViewModel(for photo: Photo) -> DetailViewModel {
+        DetailViewModel(photo: photo, repository: repository)
     }
 
     static func fixture() -> AppDependencies {

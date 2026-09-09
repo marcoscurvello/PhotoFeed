@@ -12,16 +12,16 @@ nonisolated enum AppConfigurationError: Error, Equatable {
 }
 
 nonisolated struct AppConfiguration: Sendable {
-    
+
     let unsplashAccessKey: String
-    
+
     init(bundle: Bundle = .main) throws {
         guard let accessKey = bundle.object(forInfoDictionaryKey: "UNSPLASH_ACCESS_KEY") as? String,
               !accessKey.isEmpty,
               accessKey != "$(UNSPLASH_ACCESS_KEY)" else {
             throw AppConfigurationError.missingUnsplashAccessKey
         }
-        
+
         self.unsplashAccessKey = accessKey
     }
 }
