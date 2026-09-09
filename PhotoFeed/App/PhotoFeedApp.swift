@@ -10,11 +10,17 @@ import SwiftUI
 @main
 struct PhotoFeedApp: App {
 
+    private enum Environment {
+        case fixture, live
+    }
+
+    private static let environment: Environment = .fixture
+
     private let dependencies: AppDependencies
 
     init() {
         do {
-            dependencies = try AppDependencies.live()
+            dependencies = try Self.makeDependencies()
         } catch {
             fatalError("Failed to configure PhotoFeed: \(error)")
         }
@@ -23,6 +29,16 @@ struct PhotoFeedApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView(dependencies: dependencies)
+        }
+    }
+
+    private static func makeDependencies() throws -> AppDependencies {
+        switch environment {
+        case .fixture:
+            AppDependencies.fixture()
+
+        case .live:
+            try AppDependencies.live()
         }
     }
 }
