@@ -26,7 +26,11 @@ nonisolated struct UnsplashAPI: Sendable {
     }
 
     func sponsoredPhotos(count: Int) async throws -> [PhotoDTO] {
-        try await send(.randomPhotos(count: count))
+        guard (1...30).contains(count) else {
+            throw UnsplashAPIError.invalidRandomPhotoCount(count)
+        }
+
+        return try await send(.randomPhotos(count: count))
     }
 
     func userPhotos(username: String, page: Int, perPage: Int) async throws -> [PhotoDTO] {
