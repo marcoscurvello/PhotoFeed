@@ -20,8 +20,6 @@ nonisolated struct SponsoredCoordinatorConfiguration: Sendable {
         requestBatchSize: Int = 3,
         maximumRequestsPerEpisode: Int = 3
     ) {
-        precondition(targetCoverage > 0)
-        precondition(lowWatermark >= 0 && lowWatermark < targetCoverage)
         precondition((1...30).contains(requestBatchSize))
         precondition(maximumRequestsPerEpisode > 0)
         self.targetCoverage = targetCoverage
