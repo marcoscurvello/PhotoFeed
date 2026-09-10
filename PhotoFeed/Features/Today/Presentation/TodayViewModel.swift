@@ -12,9 +12,19 @@ import Observation
 @Observable
 final class TodayViewModel {
 
+    private enum Constants {
+        static let pageSize = 10
+    }
+
+    enum State: Equatable {
+        case ready
+        case loading
+        case failed(String)
+    }
+
     private(set) var items: [TodayFeedItem] = []
-    private(set) var isLoading = false
-    private(set) var errorMessage: String?
+    private(set) var state: State = .ready
+    private var nextPage: Int? = 1
 
     private let repository: any PhotosRepository
     private let insertionPolicy: SponsoredInsertionPolicy
@@ -33,37 +43,68 @@ final class TodayViewModel {
         self.sponsoredRequestCount = sponsoredRequestCount
     }
 
+    func updateCurrentVisibleItem(_ id: TodayFeedItem.ID?) {
+        currentVisibleItemID = id
+        insertPendingSponsoredPhotosIfPossible()
+    }
+
     func load() async {
-        guard items.isEmpty, !isLoading else {
+        guard state == .ready, let nextPage else {
             return
         }
 
-        isLoading = true
-        errorMessage = nil
+        await loadPage(nextPage)
+    }
 
-        async let sponsoredPhotos = repository.sponsoredPhotos(count: sponsoredRequestCount)
+    func retry() async {
+        guard case .failed = state, let nextPage else {
+            return
+        }
 
+        await loadPage(nextPage)
+    }
+
+    private func loadPage(_ page: Int) async {
+        state = .loading
+
+        async let sponsoredLoad: Void = loadSponsoredPhotos()
+
+        await loadOrganicPhotos(page: page)
+        await sponsoredLoad
+    }
+
+    private func loadOrganicPhotos(page: Int) async {
         do {
-            let photos = try await repository.photos(page: 1, perPage: 10)
+            let photos = try await repository.photos(page: page, perPage: Constants.pageSize)
 
             guard !Task.isCancelled else {
-                isLoading = false
+                state = .ready
                 return
             }
 
-            items = photos.map { .organic($0) }
-            isLoading = false
-        } catch is CancellationError {
-            isLoading = false
-            return
-        } catch {
-            isLoading = false
-            errorMessage = error.localizedDescription
-            return
-        }
+            guard !photos.isEmpty else {
+                nextPage = nil
+                state = .ready
+                return
+            }
 
+            appendOrganicPhotos(photos)
+
+            nextPage = photos.count < Constants.pageSize
+            ? nil
+            : page + 1
+
+            state = .ready
+        } catch is CancellationError {
+            state = .ready
+        } catch {
+            state = .failed(error.localizedDescription)
+        }
+    }
+
+    private func loadSponsoredPhotos() async {
         do {
-            let photos = try await sponsoredPhotos
+            let photos = try await repository.sponsoredPhotos(count: sponsoredRequestCount)
 
             guard !Task.isCancelled else {
                 return
@@ -71,21 +112,8 @@ final class TodayViewModel {
 
             enqueueSponsoredPhotos(photos)
         } catch {
-            // Failure must not prevent the organic feed from being displayed
+            // Sponsored loads are best effort and should not block organic feed load
         }
-    }
-
-    func updateCurrentVisibleItem(_ id: TodayFeedItem.ID?) {
-        currentVisibleItemID = id
-        insertPendingSponsoredPhotosIfPossible()
-    }
-
-    func retry() async {
-        guard items.isEmpty else {
-            return
-        }
-
-        await load()
     }
 
     private func enqueueSponsoredPhotos(_ photos: [Photo]) {
@@ -98,6 +126,19 @@ final class TodayViewModel {
         }
 
         insertPendingSponsoredPhotosIfPossible()
+    }
+
+    private func appendOrganicPhotos(_ photos: [Photo]) {
+        var knownIDs = Set(items.map(\.photo.id))
+        let newItems = photos.compactMap { photo -> TodayFeedItem? in
+            guard knownIDs.insert(photo.id).inserted else {
+                return nil
+            }
+
+            return .organic(photo)
+        }
+
+        items.append(contentsOf: newItems)
     }
 
     private func insertPendingSponsoredPhotosIfPossible() {

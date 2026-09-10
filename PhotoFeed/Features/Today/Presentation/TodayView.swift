@@ -20,14 +20,7 @@ struct TodayView: View {
         ScrollView {
             LazyVStack(spacing: 24) {
                 header
-
-                if viewModel.isLoading && viewModel.items.isEmpty {
-                    loadingView
-                } else if let errorMessage = viewModel.errorMessage, viewModel.items.isEmpty {
-                    errorView(message: errorMessage)
-                } else {
-                    photoFeed
-                }
+                content
             }
             .padding(.bottom, 24)
         }
@@ -75,7 +68,6 @@ struct TodayView: View {
             }
             .onGeometryChange(for: Bool.self) { proxy in
                 let frame = proxy.frame(in: .scrollView)
-
                 guard let bounds = proxy.bounds(of: .scrollView) else {
                     return false
                 }
@@ -89,6 +81,8 @@ struct TodayView: View {
                 removeVisibleItem(item.id)
             }
         }
+
+        paginationFooter
     }
 
     private var photoStyles: [TodayFeedItem.ID: PhotoCardStyle] {
@@ -106,6 +100,53 @@ struct TodayView: View {
         }
 
         return styles
+    }
+
+    @ViewBuilder
+    private var content: some View {
+        if viewModel.items.isEmpty {
+            switch viewModel.state {
+            case .ready:
+                photoFeed
+
+            case .loading:
+                loadingView
+
+            case .failed(let message):
+                errorView(message: message)
+            }
+        } else {
+            photoFeed
+        }
+    }
+
+    private var paginationFooter: some View {
+        VStack {
+            switch viewModel.state {
+            case .loading:
+                ProgressView()
+                    .padding(.vertical, 24)
+
+            case .failed:
+                Button("Retry") {
+                    Task {
+                        await viewModel.retry()
+                    }
+                }
+                .buttonStyle(.borderedProminent)
+                .padding(.vertical, 24)
+
+            case .ready:
+                Color.clear
+                    .frame(height: 1)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .onAppear {
+            Task {
+                await viewModel.load()
+            }
+        }
     }
 
     private func updateVisibility(of id: TodayFeedItem.ID, isVisible: Bool) {
@@ -140,6 +181,7 @@ struct TodayView: View {
         }
 
         guard let bottomVisibleItem = viewModel.items.last(where: { visibleItemIDs.contains($0.id) }) else {
+            viewModel.updateCurrentVisibleItem(nil)
             return
         }
 
@@ -157,6 +199,8 @@ struct TodayView: View {
                     await viewModel.retry()
                 }
             }
+            .padding(.vertical, 24)
+            .buttonStyle(.borderedProminent)
         }
         .frame(maxWidth: .infinity)
         .padding(.horizontal, 20)
