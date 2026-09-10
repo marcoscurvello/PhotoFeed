@@ -11,7 +11,7 @@ nonisolated struct SponsoredInsertionPolicy: Sendable {
 
     let organicItemsBetweenSponsored: Int
 
-    init(organicItemsBetweenSponsored: Int = 3) {
+    init(organicItemsBetweenSponsored: Int = 4) {
         precondition(organicItemsBetweenSponsored > 0)
         self.organicItemsBetweenSponsored = organicItemsBetweenSponsored
     }
