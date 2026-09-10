@@ -136,7 +136,7 @@ struct TodayViewModelTests {
 
         #expect(viewModel.items.count == 10)
         #expect(viewModel.items.allSatisfy { !$0.isSponsored })
-        #expect(viewModel.isLoading == false)
+        #expect(viewModel.state == .ready)
 
         viewModel.updateCurrentVisibleItem(.organic(organicPhotos[0].id))
 
@@ -219,8 +219,7 @@ struct TodayViewModelTests {
 
         #expect(viewModel.items.count == 10)
         #expect(viewModel.items.allSatisfy { !$0.isSponsored })
-        #expect(viewModel.errorMessage == nil)
-        #expect(viewModel.isLoading == false)
+        #expect(viewModel.state == .ready)
     }
 
     @Test("Sponsored content waits until a visible insertion anchor is known")
