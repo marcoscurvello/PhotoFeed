@@ -14,6 +14,7 @@ struct DetailView: View {
         case immersiveLandscape
     }
 
+    @State private var selectedViewerPhoto: Photo?
     @State private var viewModel: DetailViewModel
 
     let imagePipeline: RemoteImagePipeline
@@ -27,6 +28,13 @@ struct DetailView: View {
         detailScrollView
             .task {
                 await viewModel.load()
+            }
+            .fullScreenCover(item: $selectedViewerPhoto) { photo in
+                PhotoViewerView(
+                    photos: additionalUserPhotos,
+                    initialPhotoID: photo.id,
+                    imagePipeline: imagePipeline
+                )
             }
     }
 
@@ -78,19 +86,15 @@ struct DetailView: View {
 
     private var heroAspectRatio: CGFloat {
         switch heroPresentation {
-        case .natural:
-            photoAspectRatio
-        case .immersiveLandscape:
-            0.82
+        case .natural: photoAspectRatio
+        case .immersiveLandscape: 0.82
         }
     }
 
     private var heroContentMode: ContentMode {
         switch heroPresentation {
-        case .natural:
-            .fit
-        case .immersiveLandscape:
-            .fill
+        case .natural: .fit
+        case .immersiveLandscape: .fill
         }
     }
 
@@ -313,19 +317,25 @@ struct DetailView: View {
     }
 
     private func userPhoto(_ photo: Photo) -> some View {
-        RoundedRectangle(cornerRadius: 20, style: .continuous)
-            .fill(.quaternary)
-            .frame(width: 160, height: 205)
-            .overlay {
-                RemoteImageView(url: photo.imageURLs.small, pipeline: imagePipeline) {
-                    ProgressView()
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        Button {
+            selectedViewerPhoto = photo
+        } label: {
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .fill(.quaternary)
+                .frame(width: 160, height: 205)
+                .overlay {
+                    RemoteImageView(url: photo.imageURLs.small, pipeline: imagePipeline) {
+                        ProgressView()
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .clipped()
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .clipped()
-            }
-            .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-            .accessibilityLabel(photo.description ?? "Photo by \(photo.user.name)")
+                .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(photo.description ?? "Photo by \(photo.user.name)")
+        .accessibilityHint("Opens photo viewer")
     }
 
     private var userPhotosFailure: some View {
