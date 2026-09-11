@@ -24,49 +24,49 @@ final class TodayViewModel {
 
     private let repository: any PhotosRepository
     private let insertionPolicy: SponsoredInsertionPolicy
-    private let sponsoredRequestCount: Int
+    private let sponsoredConfiguration: SponsoredCoordinatorConfiguration
+    private let sponsoredCoordinator: SponsoredCoordinator
 
     private(set) var items: [TodayFeedItem] = []
     private(set) var state: State = .ready
 
     private var admittedPhotoIDs: Set<Photo.ID> = []
     private var photoStyles: [Photo.ID: PhotoCardStyle] = [:]
+    private var pendingSponsoredPhotos: [Photo] = []
+
     private var currentVisibleItemID: TodayFeedItem.ID?
     private var furthestReachedItemID: TodayFeedItem.ID?
+
     private var isSponsoredLoadingActive = false
     private var nextPage: Int? = 1
 
     @ObservationIgnored
-    private lazy var sponsoredCoordinator = SponsoredCoordinator(
-        repository: repository,
-        configuration: .init(requestBatchSize: sponsoredRequestCount),
-        isEligible: { [weak self] photo in
-            guard let self else { return false }
-            return !self.admittedPhotoIDs.contains(photo.id)
-        },
-        onCandidatesAvailable: { [weak self] in
-            self?.handleSponsoredCandidatesAvailable()
-        }
-    )
+    private var sponsoredTask: Task<Void, Never>?
 
     init(
         repository: any PhotosRepository,
         insertionPolicy: SponsoredInsertionPolicy = SponsoredInsertionPolicy(),
-        sponsoredRequestCount: Int = 3
+        sponsoredConfiguration: SponsoredCoordinatorConfiguration = SponsoredCoordinatorConfiguration()
     ) {
         self.repository = repository
         self.insertionPolicy = insertionPolicy
-        self.sponsoredRequestCount = sponsoredRequestCount
+        self.sponsoredConfiguration = sponsoredConfiguration
+
+        self.sponsoredCoordinator = SponsoredCoordinator(repository: repository, configuration: sponsoredConfiguration)
     }
 
     func setSponsoredLoadingActive(_ isActive: Bool) {
+        guard isSponsoredLoadingActive != isActive else {
+            return
+        }
+
         isSponsoredLoadingActive = isActive
+
         if isActive {
-            sponsoredCoordinator.activate()
-            reconcileSponsoredSupply()
+            replenishSponsoredPhotosIfNeeded()
         } else {
             currentVisibleItemID = nil
-            sponsoredCoordinator.deactivate()
+            sponsoredTask?.cancel()
         }
     }
 
@@ -81,24 +81,17 @@ final class TodayViewModel {
         }
 
         currentVisibleItemID = id
-        let furthestReachedIndex = self.furthestReachedIndex
+
         guard let id, let visibleIndex = items.firstIndex(where: { $0.id == id }) else {
-            reconcileSponsoredSupply(furthestReachedIndex: furthestReachedIndex)
             return
         }
 
-        if let furthestReachedIndex,
-           let furthestReachedItemID,
-           let furthestIndex = items.firstIndex(where: { $0.id == furthestReachedItemID }),
-           furthestIndex >= visibleIndex {
-            insertSponsoredCandidatesIfPossible(furthestReachedIndex: furthestReachedIndex)
-            reconcileSponsoredSupply(furthestReachedIndex: furthestReachedIndex)
-            return
+        if visibleIndex > (furthestReachedIndex ?? -1) {
+            furthestReachedItemID = id
         }
 
-        furthestReachedItemID = id
-        insertSponsoredCandidatesIfPossible(furthestReachedIndex: visibleIndex)
-        reconcileSponsoredSupply(furthestReachedIndex: visibleIndex)
+        insertPendingSponsoredPhotosIfPossible()
+        replenishSponsoredPhotosIfNeeded()
     }
 
     func load() async {
@@ -117,10 +110,16 @@ final class TodayViewModel {
         await loadPage(nextPage)
     }
 
+    func photoStyle(for item: TodayFeedItem) -> PhotoCardStyle {
+        guard case .organic(let photo) = item else {
+            return .card
+        }
+
+        return photoStyles[photo.id] ?? .card
+    }
+
     private func loadPage(_ page: Int) async {
         state = .loading
-
-        reconcileSponsoredSupply()
         await loadOrganicPhotos(page: page)
     }
 
@@ -130,158 +129,141 @@ final class TodayViewModel {
 
             guard !Task.isCancelled else {
                 state = .ready
-                reconcileSponsoredSupply()
                 return
             }
 
             guard !photos.isEmpty else {
                 nextPage = nil
                 state = .ready
-                reconcileSponsoredSupply()
+
+                insertPendingSponsoredPhotosIfPossible()
+                replenishSponsoredPhotosIfNeeded()
                 return
             }
 
             appendOrganicPhotos(photos)
 
-            nextPage = photos.count < Constants.pageSize ? nil : page + 1
-            state = .ready
-            let furthestReachedIndex = furthestReachedIndex
-            insertSponsoredCandidatesIfPossible(furthestReachedIndex: furthestReachedIndex)
-            reconcileSponsoredSupply(furthestReachedIndex: furthestReachedIndex)
+            nextPage = photos.count < Constants.pageSize
+            ? nil
+            : page + 1
 
-        } catch is CancellationError {
             state = .ready
-            reconcileSponsoredSupply()
-        } catch let error as URLError where error.code == .cancelled {
-            state = .ready
-            reconcileSponsoredSupply()
+
+            insertPendingSponsoredPhotosIfPossible()
+            replenishSponsoredPhotosIfNeeded()
         } catch {
-            state = Task.isCancelled
-            ? .ready
-            : .failed(error.localizedDescription)
-            reconcileSponsoredSupply()
+            handle(error)
+        }
+    }
+
+    private func handle(_ error: Error) {
+        switch HTTPRequestFailureClassification(error) {
+            case .cancelled:
+                state = .ready
+
+            case .potentiallyTransient(_),
+                    .nonTransient,
+                    .unknown:
+                state = .failed(error.localizedDescription)
         }
     }
 
     private func appendOrganicPhotos(_ photos: [Photo]) {
-        let newItems = photos.compactMap { photo -> TodayFeedItem? in
+        for photo in photos {
             guard admittedPhotoIDs.insert(photo.id).inserted else {
-                return nil
+                continue
             }
 
-            sponsoredCoordinator.removeCandidate(withID: photo.id)
+            pendingSponsoredPhotos.removeAll {
+                $0.id == photo.id
+            }
+
             let organicOrdinal = photoStyles.count
-            photoStyles[photo.id] = organicOrdinal.isMultiple(of: 4) ? .fullBleed : .card
-            return .organic(photo)
+
+            photoStyles[photo.id] = organicOrdinal.isMultiple(of: 4)
+            ? .fullBleed
+            : .card
+
+            items.append(.organic(photo))
         }
-        items.append(contentsOf: newItems)
     }
 
-    func photoStyle(for item: TodayFeedItem) -> PhotoCardStyle {
-        guard case .organic(let photo) = item else {
-            return .card
-        }
-
-        return photoStyles[photo.id] ?? .card
-    }
-
-    private func handleSponsoredCandidatesAvailable() {
-        let furthestReachedIndex = furthestReachedIndex
-        insertSponsoredCandidatesIfPossible(furthestReachedIndex: furthestReachedIndex)
-        reconcileSponsoredSupply(furthestReachedIndex: furthestReachedIndex)
-    }
-
-    private func insertSponsoredCandidatesIfPossible(furthestReachedIndex: Int?) {
-        guard isSponsoredLoadingActive,
-              sponsoredCoordinator.candidateCount > 0,
-              currentVisibleItemID != nil,
-              let furthestReachedIndex else {
+    private func replenishSponsoredPhotosIfNeeded() {
+        guard
+            isSponsoredLoadingActive,
+            sponsoredTask == nil,
+            pendingSponsoredPhotos.count <= sponsoredConfiguration.lowWatermark
+        else {
             return
         }
 
-        while sponsoredCoordinator.candidateCount > 0 {
-            guard let insertionIndex = insertionPolicy.insertionIndex(
-                in: items,
-                currentVisibleIndex: furthestReachedIndex
-            ), let photo = sponsoredCoordinator.takeNextCandidate() else {
+        let desiredCount = max(sponsoredConfiguration.targetCoverage - pendingSponsoredPhotos.count, 0)
+        guard desiredCount > 0 else {
+            return
+        }
+
+        let excludedIDs = admittedPhotoIDs.union(pendingSponsoredPhotos.map(\.id))
+
+        sponsoredTask = Task { [weak self] in
+            guard let self else {
                 return
             }
 
-            guard admittedPhotoIDs.insert(photo.id).inserted else { continue }
+            let photos = await sponsoredCoordinator.loadCandidates(
+                count: desiredCount,
+                excluding: excludedIDs
+            )
+
+            if Task.isCancelled {
+                sponsoredTask = nil
+
+                if isSponsoredLoadingActive {
+                    replenishSponsoredPhotosIfNeeded()
+                }
+
+                return
+            }
+
+            sponsoredTask = nil
+            receiveSponsoredPhotos(photos)
+        }
+    }
+
+    private func receiveSponsoredPhotos(_ photos: [Photo]) {
+        var knownIDs = admittedPhotoIDs.union(pendingSponsoredPhotos.map(\.id))
+
+        for photo in photos where knownIDs.insert(photo.id).inserted {
+            pendingSponsoredPhotos.append(photo)
+        }
+
+        insertPendingSponsoredPhotosIfPossible()
+    }
+
+    private func insertPendingSponsoredPhotosIfPossible() {
+        guard isSponsoredLoadingActive, let insertionBoundary = furthestReachedIndex else {
+            return
+        }
+
+        while let photo = pendingSponsoredPhotos.first {
+            guard let insertionIndex = insertionPolicy.insertionIndex(in: items, currentVisibleIndex: insertionBoundary) else {
+                return
+            }
+
+            pendingSponsoredPhotos.removeFirst()
+
+            guard admittedPhotoIDs.insert(photo.id).inserted else {
+                continue
+            }
+
             items.insert(.sponsored(photo), at: insertionIndex)
         }
     }
 
-    private func reconcileSponsoredSupply() {
-        reconcileSponsoredSupply(furthestReachedIndex: furthestReachedIndex)
-    }
-
-    private func reconcileSponsoredSupply(furthestReachedIndex: Int?) {
-        let canSeedInitialSupply = items.isEmpty && state == .loading && nextPage != nil
-        let canPrefetchForAnotherPage = nextPage != nil && !items.isEmpty
-
-        let insertionIndex = canSeedInitialSupply || canPrefetchForAnotherPage
-        ? nil
-        : furthestReachedIndex.flatMap { insertionPolicy.insertionIndex(in: items, currentVisibleIndex: $0) }
-
-        let hasSupplyOpportunity = canSeedInitialSupply || canPrefetchForAnotherPage || insertionIndex != nil
-
-        let sponsoredItemsAheadOfProgress = sponsoredItemsAheadOfProgress(after: furthestReachedIndex)
-        let coverage = sponsoredCoordinator.candidateCount + sponsoredItemsAheadOfProgress
-
-        let effectiveTarget = nextPage == nil
-        ? min(
-            sponsoredCoordinator.maximumCoverage,
-            sponsoredItemsAheadOfProgress + terminalInsertionCapacity(startingAt: insertionIndex)
-        )
-        : nil
-
-        sponsoredCoordinator.reconcile(
-            coverage: coverage,
-            targetCoverage: effectiveTarget,
-            hasSupplyOpportunity: hasSupplyOpportunity
-        )
-    }
-
-    private func sponsoredItemsAheadOfProgress(after furthestReachedIndex: Int?) -> Int {
-        guard let furthestReachedIndex else { return 0 }
-
-        let aheadOfProgressRange = items.index(after: furthestReachedIndex)...
-        return items[aheadOfProgressRange].reduce(into: 0) {
-            $0 += $1.isSponsored ? 1 : 0
-        }
-    }
-
-    private func terminalInsertionCapacity(startingAt initialInsertionIndex: Int?) -> Int {
-        guard var insertionIndex = initialInsertionIndex else {
-            return 0
-        }
-
-        var capacity = 1
-
-        while capacity < sponsoredCoordinator.maximumCoverage {
-            var organicItemsAfterLastSponsor = 0
-            var nextInsertionIndex: Int?
-
-            for index in insertionIndex..<items.endIndex where !items[index].isSponsored {
-                organicItemsAfterLastSponsor += 1
-
-                if organicItemsAfterLastSponsor == insertionPolicy.organicItemsBetweenSponsored {
-                    nextInsertionIndex = items.index(after: index)
-                    break
-                }
-            }
-
-            guard let nextInsertionIndex else { break }
-            capacity += 1
-            insertionIndex = nextInsertionIndex
-        }
-
-        return capacity
-    }
-
     private var furthestReachedIndex: Int? {
-        guard let furthestReachedItemID else { return nil }
-        return items.firstIndex(where: { $0.id == furthestReachedItemID })
+        guard let furthestReachedItemID else {
+            return nil
+        }
+
+        return items.firstIndex { $0.id == furthestReachedItemID }
     }
 }
