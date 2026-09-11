@@ -1,6 +1,6 @@
 # PhotoFeed
 
-Sample iOS 17+ app that interacts with the Unsplash API.
+Sample iOS 18+ app that interacts with the Unsplash API.
 
 ## Running the app
 
