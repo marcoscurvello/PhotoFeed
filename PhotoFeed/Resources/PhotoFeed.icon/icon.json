@@ -22,7 +22,7 @@
           "image-name" : "photo_icon.png",
           "name" : "photo_icon",
           "position" : {
-            "scale" : 0.2,
+            "scale" : 0.16,
             "translation-in-points" : [
               0,
               0
