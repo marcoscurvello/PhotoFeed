@@ -56,7 +56,7 @@ struct HTTPClientTests {
         #expect(response == TestResponse(value: "success"))
     }
 
-    @Test("Non successful HTTP status throws the status code and response body")
+    @Test("Non-successful HTTP status throws the status code and response body")
     func rejectsUnacceptableStatusCode() async throws {
         let responseData = Data("rate limited".utf8)
 
@@ -94,12 +94,11 @@ struct HTTPClientTests {
         }
     }
 
-    @Test("Retry-After delta seconds is converted to a deadline")
+    @Test("Non negative Retry-After seconds produce a retry deadline")
     func parsesRetryAfterDeltaSeconds() async throws {
         defer { URLProtocolStub.handler = nil }
         let responseData = Data("rate limited".utf8)
-        for (headerValue, delay) in [(" 0 ", 0.0), ("120", 120.0)] {
-            let receivedAt = Date()
+        for headerValue in [" 0 ", "120"] {
             let response = try #require(
                 HTTPURLResponse(
                     url: URL(string: "https://api.unsplash.com/photos")!,
@@ -111,14 +110,18 @@ struct HTTPClientTests {
 
             URLProtocolStub.handler = { _ in (response, responseData) }
 
+            let beforeRequest = Date()
             do {
                 _ = try await makeClient().data(for: HTTPRequest(path: "photos"))
                 Issue.record("Expected the request to fail")
             } catch let HTTPClientError.unacceptableStatusCode(_, data, retryAfter) {
                 #expect(data == responseData)
                 let deadline = try #require(retryAfter)
-                #expect(deadline >= receivedAt.addingTimeInterval(delay))
-                #expect(deadline <= Date().addingTimeInterval(delay))
+                let afterRequest = Date()
+                let seconds = headerValue.trimmingCharacters(in: .whitespacesAndNewlines)
+                let delay = try #require(TimeInterval(seconds))
+                #expect(deadline >= beforeRequest.addingTimeInterval(delay))
+                #expect(deadline <= afterRequest.addingTimeInterval(delay))
             } catch {
                 Issue.record("Unexpected error: \(error)")
             }

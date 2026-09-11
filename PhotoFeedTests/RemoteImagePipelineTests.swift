@@ -12,15 +12,16 @@ import Testing
 @Suite("Remote image pipeline", .serialized)
 nonisolated struct RemoteImagePipelineTests {
 
-    @Test("Concurrent requests for the same URL are coalesced")
-    func coalescesConcurrentRequests() async throws {
+    @Test("Concurrent callers receive the same image with one fetch", .timeLimit(.minutes(1)))
+    func concurrentCallersReceiveImageWithOneFetch() async throws {
         let counter = RequestCounter()
+        let responseGate = ResponseGate()
         let expectedData = Data("image-data".utf8)
 
         RemoteImageURLProtocolStub.handler = { request in
             counter.increment()
-
-            Thread.sleep(forTimeInterval: 0.05)
+            await responseGate.markStarted()
+            await responseGate.waitForRelease()
 
             return (
                 try makeHTTPResponse(for: request),
@@ -36,7 +37,11 @@ nonisolated struct RemoteImagePipelineTests {
         let url = URL(string: "https://images.example.com/photo")!
 
         async let first = pipeline.data(for: url)
+        await responseGate.waitUntilStarted()
+
         async let second = pipeline.data(for: url)
+
+        await responseGate.release()
 
         let (firstData, secondData) = try await (first, second)
 
@@ -71,6 +76,45 @@ nonisolated struct RemoteImagePipelineTests {
 
         #expect(firstData == expectedData)
         #expect(secondData == expectedData)
+        #expect(counter.count == 1)
+    }
+
+    @Test("Cancelling a caller does not abort or discard the shared fetch", .timeLimit(.minutes(1)))
+    func callerCancellationPreservesSharedFetch() async throws {
+        let counter = RequestCounter()
+        let responseGate = ResponseGate()
+        let expectedData = Data("image-data".utf8)
+
+        RemoteImageURLProtocolStub.handler = { request in
+            counter.increment()
+            await responseGate.markStarted()
+            await responseGate.waitForRelease()
+
+            return (
+                try makeHTTPResponse(for: request),
+                expectedData
+            )
+        }
+
+        defer {
+            RemoteImageURLProtocolStub.handler = nil
+        }
+
+        let pipeline = makePipeline()
+        let url = URL(string: "https://images.example.com/photo")!
+        let caller = Task {
+            try await pipeline.data(for: url)
+        }
+
+        await responseGate.waitUntilStarted()
+        caller.cancel()
+        await responseGate.release()
+
+        let completedData = try await caller.value
+        let cachedData = try await pipeline.data(for: url)
+
+        #expect(completedData == expectedData)
+        #expect(cachedData == expectedData)
         #expect(counter.count == 1)
     }
 
@@ -180,6 +224,38 @@ nonisolated struct RemoteImagePipelineTests {
         #expect(counter.count == 2)
     }
 
+    @Test("Removing one cached URL does not evict another URL")
+    func removesCachedDataForOneURL() async throws {
+        let counter = RequestCounter()
+        let expectedData = Data("image-data".utf8)
+
+        RemoteImageURLProtocolStub.handler = { request in
+            counter.increment()
+
+            return (
+                try makeHTTPResponse(for: request),
+                expectedData
+            )
+        }
+
+        defer {
+            RemoteImageURLProtocolStub.handler = nil
+        }
+
+        let pipeline = makePipeline()
+        let firstURL = URL(string: "https://images.example.com/photo-1")!
+        let secondURL = URL(string: "https://images.example.com/photo-2")!
+
+        _ = try await pipeline.data(for: firstURL)
+        _ = try await pipeline.data(for: secondURL)
+        await pipeline.removeCachedData(for: firstURL)
+
+        _ = try await pipeline.data(for: firstURL)
+        _ = try await pipeline.data(for: secondURL)
+
+        #expect(counter.count == 3)
+    }
+
     private func makePipeline() -> RemoteImagePipeline {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.protocolClasses = [RemoteImageURLProtocolStub.self]
@@ -235,9 +311,11 @@ private final class RequestCounter: @unchecked Sendable {
 
 private final class RemoteImageURLProtocolStub: URLProtocol, @unchecked Sendable {
 
-    typealias Handler = @Sendable (URLRequest) throws -> (URLResponse, Data)
+    typealias Handler = @Sendable (URLRequest) async throws -> (URLResponse, Data)
 
     nonisolated(unsafe) static var handler: Handler?
+
+    private var loadingTask: Task<Void, Never>?
 
     override class func canInit(with request: URLRequest) -> Bool {
         true
@@ -253,16 +331,85 @@ private final class RemoteImageURLProtocolStub: URLProtocol, @unchecked Sendable
             return
         }
 
-        do {
-            let (response, data) = try handler(request)
+        let request = request
+        loadingTask = Task { [weak self, request] in
+            do {
+                let (response, data) = try await handler(request)
 
-            client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
-            client?.urlProtocol(self, didLoad: data)
-            client?.urlProtocolDidFinishLoading(self)
-        } catch {
-            client?.urlProtocol(self, didFailWithError: error)
+                guard !Task.isCancelled, let self else {
+                    return
+                }
+
+                client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+                client?.urlProtocol(self, didLoad: data)
+                client?.urlProtocolDidFinishLoading(self)
+            } catch {
+                guard !Task.isCancelled, let self else {
+                    return
+                }
+
+                client?.urlProtocol(self, didFailWithError: error)
+            }
         }
     }
 
-    override func stopLoading() {}
+    override func stopLoading() {
+        loadingTask?.cancel()
+        loadingTask = nil
+    }
+}
+
+private actor ResponseGate {
+
+    private let startSignal: AsyncStream<Void>
+    private let startSignalContinuation: AsyncStream<Void>.Continuation
+    private var isReleased = false
+    private var releaseWaiters: [CheckedContinuation<Void, Never>] = []
+
+    init() {
+        let (stream, continuation) = AsyncStream.makeStream(
+            of: Void.self,
+            bufferingPolicy: .bufferingNewest(1)
+        )
+        startSignal = stream
+        startSignalContinuation = continuation
+    }
+
+    func markStarted() {
+        startSignalContinuation.yield(())
+        startSignalContinuation.finish()
+    }
+
+    func waitUntilStarted() async {
+        for await _ in startSignal {
+            return
+        }
+    }
+
+    func waitForRelease() async {
+        guard !isReleased else {
+            return
+        }
+
+        await withTaskCancellationHandler {
+            await withCheckedContinuation { continuation in
+                if isReleased {
+                    continuation.resume()
+                } else {
+                    releaseWaiters.append(continuation)
+                }
+            }
+        } onCancel: {
+            Task {
+                await self.release()
+            }
+        }
+    }
+
+    func release() {
+        isReleased = true
+        let waiters = releaseWaiters
+        releaseWaiters.removeAll()
+        waiters.forEach { $0.resume() }
+    }
 }

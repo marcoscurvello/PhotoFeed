@@ -9,7 +9,7 @@ import Foundation
 import Testing
 @testable import PhotoFeed
 
-@Suite("Detail view model")
+@Suite("Detail view model", .timeLimit(.minutes(1)))
 struct DetailViewModelTests {
 
     @Test("User photos and statistics load successfully")
@@ -51,7 +51,7 @@ struct DetailViewModelTests {
             await viewModel.load()
         }
 
-        await waitForBothRequests(toStartIn: repository)
+        await repository.waitUntilBothRequestsStarted()
 
         let counts = await repository.callCounts()
 
@@ -189,17 +189,6 @@ private extension DetailViewModelTests {
         )
     }
 
-    func waitForBothRequests(toStartIn repository: TestPhotoDetailRepository) async {
-        for _ in 0..<1_000 {
-            let counts = await repository.callCounts()
-
-            if counts.userPhotos == 1 && counts.statistics == 1 {
-                return
-            }
-
-            await Task.yield()
-        }
-    }
 }
 
 // MARK: - Test repository
@@ -218,6 +207,7 @@ private actor TestPhotoDetailRepository: PhotoDetailRepository {
 
     private var userPhotosCallCount = 0
     private var statisticsCallCount = 0
+    private let bothRequestsStarted = AsyncStream<Void>.makeStream()
 
     init(
         userPhotosResult: Result<[Photo], TestError>,
@@ -233,6 +223,7 @@ private actor TestPhotoDetailRepository: PhotoDetailRepository {
 
     func userPhotos(username: String, page: Int, perPage: Int) async throws -> [Photo] {
         userPhotosCallCount += 1
+        resumeBothRequestsStartedWaitersIfReady()
 
         if let userPhotosGate {
             await userPhotosGate.wait()
@@ -243,6 +234,7 @@ private actor TestPhotoDetailRepository: PhotoDetailRepository {
 
     func statistics(photoID: Photo.ID) async throws -> PhotoStatistics {
         statisticsCallCount += 1
+        resumeBothRequestsStartedWaitersIfReady()
 
         if let statisticsGate {
             await statisticsGate.wait()
@@ -261,6 +253,20 @@ private actor TestPhotoDetailRepository: PhotoDetailRepository {
 
     func callCounts() -> (userPhotos: Int, statistics: Int) {
         (userPhotosCallCount, statisticsCallCount)
+    }
+
+    func waitUntilBothRequestsStarted() async {
+        var iterator = bothRequestsStarted.stream.makeAsyncIterator()
+        _ = await iterator.next()
+    }
+
+    private func resumeBothRequestsStartedWaitersIfReady() {
+        guard userPhotosCallCount >= 1, statisticsCallCount >= 1 else {
+            return
+        }
+
+        bothRequestsStarted.continuation.yield(())
+        bothRequestsStarted.continuation.finish()
     }
 }
 
