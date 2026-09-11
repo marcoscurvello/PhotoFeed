@@ -30,6 +30,7 @@ final class TodayViewModel {
     private(set) var state: State = .ready
 
     private var admittedPhotoIDs: Set<Photo.ID> = []
+    private var photoStyles: [Photo.ID: PhotoCardStyle] = [:]
     private var currentVisibleItemID: TodayFeedItem.ID?
     private var furthestReachedItemID: TodayFeedItem.ID?
     private var isSponsoredLoadingActive = false
@@ -44,8 +45,7 @@ final class TodayViewModel {
             return !self.admittedPhotoIDs.contains(photo.id)
         },
         onCandidatesAvailable: { [weak self] in
-            self?.insertSponsoredCandidatesIfPossible()
-            self?.reconcileSponsoredSupply()
+            self?.handleSponsoredCandidatesAvailable()
         }
     )
 
@@ -76,23 +76,29 @@ final class TodayViewModel {
             return
         }
 
-        currentVisibleItemID = id
-        guard let id, let visibleIndex = items.firstIndex(where: { $0.id == id }) else {
-            reconcileSponsoredSupply()
+        guard currentVisibleItemID != id else {
             return
         }
 
-        if let furthestReachedItemID,
+        currentVisibleItemID = id
+        let furthestReachedIndex = self.furthestReachedIndex
+        guard let id, let visibleIndex = items.firstIndex(where: { $0.id == id }) else {
+            reconcileSponsoredSupply(furthestReachedIndex: furthestReachedIndex)
+            return
+        }
+
+        if let furthestReachedIndex,
+           let furthestReachedItemID,
            let furthestIndex = items.firstIndex(where: { $0.id == furthestReachedItemID }),
            furthestIndex >= visibleIndex {
-            insertSponsoredCandidatesIfPossible()
-            reconcileSponsoredSupply()
+            insertSponsoredCandidatesIfPossible(furthestReachedIndex: furthestReachedIndex)
+            reconcileSponsoredSupply(furthestReachedIndex: furthestReachedIndex)
             return
         }
 
         furthestReachedItemID = id
-        insertSponsoredCandidatesIfPossible()
-        reconcileSponsoredSupply()
+        insertSponsoredCandidatesIfPossible(furthestReachedIndex: visibleIndex)
+        reconcileSponsoredSupply(furthestReachedIndex: visibleIndex)
     }
 
     func load() async {
@@ -139,8 +145,9 @@ final class TodayViewModel {
 
             nextPage = photos.count < Constants.pageSize ? nil : page + 1
             state = .ready
-            insertSponsoredCandidatesIfPossible()
-            reconcileSponsoredSupply()
+            let furthestReachedIndex = furthestReachedIndex
+            insertSponsoredCandidatesIfPossible(furthestReachedIndex: furthestReachedIndex)
+            reconcileSponsoredSupply(furthestReachedIndex: furthestReachedIndex)
 
         } catch is CancellationError {
             state = .ready
@@ -163,18 +170,42 @@ final class TodayViewModel {
             }
 
             sponsoredCoordinator.removeCandidate(withID: photo.id)
+            let organicOrdinal = photoStyles.count
+            photoStyles[photo.id] = organicOrdinal.isMultiple(of: 4) ? .fullBleed : .card
             return .organic(photo)
         }
         items.append(contentsOf: newItems)
     }
 
-    private func insertSponsoredCandidatesIfPossible() {
-        guard isSponsoredLoadingActive, currentVisibleIndex != nil, let furthestReachedIndex else {
+    func photoStyle(for item: TodayFeedItem) -> PhotoCardStyle {
+        guard case .organic(let photo) = item else {
+            return .card
+        }
+
+        return photoStyles[photo.id] ?? .card
+    }
+
+    private func handleSponsoredCandidatesAvailable() {
+        let furthestReachedIndex = furthestReachedIndex
+        insertSponsoredCandidatesIfPossible(furthestReachedIndex: furthestReachedIndex)
+        reconcileSponsoredSupply(furthestReachedIndex: furthestReachedIndex)
+    }
+
+    private func insertSponsoredCandidatesIfPossible(furthestReachedIndex: Int?) {
+        guard isSponsoredLoadingActive,
+              sponsoredCoordinator.candidateCount > 0,
+              currentVisibleItemID != nil,
+              let furthestReachedIndex else {
             return
         }
 
-        while let insertionIndex = insertionPolicy.insertionIndex(in: items, currentVisibleIndex: furthestReachedIndex),
-              let photo = sponsoredCoordinator.takeNextCandidate() {
+        while sponsoredCoordinator.candidateCount > 0 {
+            guard let insertionIndex = insertionPolicy.insertionIndex(
+                in: items,
+                currentVisibleIndex: furthestReachedIndex
+            ), let photo = sponsoredCoordinator.takeNextCandidate() else {
+                return
+            }
 
             guard admittedPhotoIDs.insert(photo.id).inserted else { continue }
             items.insert(.sponsored(photo), at: insertionIndex)
@@ -182,38 +213,47 @@ final class TodayViewModel {
     }
 
     private func reconcileSponsoredSupply() {
+        reconcileSponsoredSupply(furthestReachedIndex: furthestReachedIndex)
+    }
+
+    private func reconcileSponsoredSupply(furthestReachedIndex: Int?) {
         let canSeedInitialSupply = items.isEmpty && state == .loading && nextPage != nil
-        let hasFuturePlacement = furthestReachedIndex.flatMap {
-            insertionPolicy.insertionIndex(in: items, currentVisibleIndex: $0)
-        } != nil
-        let hasSupplyOpportunity = canSeedInitialSupply || hasFuturePlacement || (nextPage != nil && !items.isEmpty)
-        let effectiveTarget = nextPage == nil ? terminalTargetCoverage : nil
+        let canPrefetchForAnotherPage = nextPage != nil && !items.isEmpty
+
+        let insertionIndex = canSeedInitialSupply || canPrefetchForAnotherPage
+        ? nil
+        : furthestReachedIndex.flatMap { insertionPolicy.insertionIndex(in: items, currentVisibleIndex: $0) }
+
+        let hasSupplyOpportunity = canSeedInitialSupply || canPrefetchForAnotherPage || insertionIndex != nil
+
+        let sponsoredItemsAheadOfProgress = sponsoredItemsAheadOfProgress(after: furthestReachedIndex)
+        let coverage = sponsoredCoordinator.candidateCount + sponsoredItemsAheadOfProgress
+
+        let effectiveTarget = nextPage == nil
+        ? min(
+            sponsoredCoordinator.maximumCoverage,
+            sponsoredItemsAheadOfProgress + terminalInsertionCapacity(startingAt: insertionIndex)
+        )
+        : nil
 
         sponsoredCoordinator.reconcile(
-            coverage: sponsoredCoverage,
+            coverage: coverage,
             targetCoverage: effectiveTarget,
             hasSupplyOpportunity: hasSupplyOpportunity
         )
     }
 
-    private var sponsoredCoverage: Int {
-        sponsoredCoordinator.candidateCount + sponsoredItemsAheadOfProgress
-    }
-
-    private var sponsoredItemsAheadOfProgress: Int {
+    private func sponsoredItemsAheadOfProgress(after furthestReachedIndex: Int?) -> Int {
         guard let furthestReachedIndex else { return 0 }
-        return items[items.index(after: furthestReachedIndex)...].reduce(into: 0) {
+
+        let aheadOfProgressRange = items.index(after: furthestReachedIndex)...
+        return items[aheadOfProgressRange].reduce(into: 0) {
             $0 += $1.isSponsored ? 1 : 0
         }
     }
 
-    private var terminalTargetCoverage: Int {
-        min(sponsoredCoordinator.maximumCoverage, sponsoredItemsAheadOfProgress + terminalInsertionCapacity)
-    }
-
-    private var terminalInsertionCapacity: Int {
-        guard let furthestReachedIndex,
-              var insertionIndex = insertionPolicy.insertionIndex(in: items, currentVisibleIndex: furthestReachedIndex) else {
+    private func terminalInsertionCapacity(startingAt initialInsertionIndex: Int?) -> Int {
+        guard var insertionIndex = initialInsertionIndex else {
             return 0
         }
 
@@ -238,11 +278,6 @@ final class TodayViewModel {
         }
 
         return capacity
-    }
-
-    private var currentVisibleIndex: Int? {
-        guard let currentVisibleItemID else { return nil }
-        return items.firstIndex(where: { $0.id == currentVisibleItemID })
     }
 
     private var furthestReachedIndex: Int? {

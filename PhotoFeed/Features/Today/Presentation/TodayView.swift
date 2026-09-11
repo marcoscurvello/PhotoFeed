@@ -71,12 +71,10 @@ struct TodayView: View {
 
     @ViewBuilder
     private var photoFeed: some View {
-        let styles = photoStyles
-
         ForEach(viewModel.items) { item in
             TodayPhotoRow(
                 item: item,
-                style: styles[item.id] ?? .card,
+                style: viewModel.photoStyle(for: item),
                 imagePipeline: imagePipeline
             ) {
                 onSelect(item.photo)
@@ -98,23 +96,6 @@ struct TodayView: View {
         }
 
         paginationFooter
-    }
-
-    private var photoStyles: [TodayFeedItem.ID: PhotoCardStyle] {
-        var styles: [TodayFeedItem.ID: PhotoCardStyle] = [:]
-        var organicIndex = 0
-
-        for item in viewModel.items {
-            if item.isSponsored {
-                styles[item.id] = .card
-                continue
-            }
-
-            styles[item.id] = organicIndex.isMultiple(of: 4) ? .fullBleed : .card
-            organicIndex += 1
-        }
-
-        return styles
     }
 
     @ViewBuilder
