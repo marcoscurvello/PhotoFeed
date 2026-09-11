@@ -14,6 +14,7 @@ struct DetailView: View {
         case immersiveLandscape
     }
 
+    @Environment(\.dismiss) private var dismiss
     @State private var selectedViewerPhoto: Photo?
     @State private var viewModel: DetailViewModel
 
@@ -26,6 +27,21 @@ struct DetailView: View {
 
     var body: some View {
         detailScrollView
+            .background(.background)
+            .overlay(alignment: .topTrailing) {
+                Button {
+                    dismiss()
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.body.weight(.semibold))
+                        .foregroundStyle(.white)
+                        .frame(width: 36, height: 36)
+                        .background(.black.opacity(0.45), in: Circle())
+                }
+                .buttonStyle(.plain)
+                .padding(.trailing, 16)
+                .safeAreaPadding(.top, 8)
+            }
             .task {
                 await viewModel.load()
             }
@@ -48,8 +64,6 @@ struct DetailView: View {
         }
         .ignoresSafeArea(.container, edges: .top)
         .scrollIndicators(.hidden)
-        .toolbarBackground(.hidden, for: .navigationBar)
-        .toolbarColorScheme(.dark, for: .navigationBar)
 
         if #available(iOS 26.0, *) {
             scrollView

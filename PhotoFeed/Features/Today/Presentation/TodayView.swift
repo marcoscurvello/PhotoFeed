@@ -13,7 +13,8 @@ struct TodayView: View {
 
     let viewModel: TodayViewModel
     let imagePipeline: RemoteImagePipeline
-    let onSelect: (Photo) -> Void
+    let transitionNamespace: Namespace.ID
+    let onSelect: (TodayFeedItem) -> Void
 
     @State private var visibleItemIDs: Set<TodayFeedItem.ID> = []
     @State private var visibilityRevision = 0
@@ -75,9 +76,10 @@ struct TodayView: View {
             TodayPhotoRow(
                 item: item,
                 style: viewModel.photoStyle(for: item),
-                imagePipeline: imagePipeline
+                imagePipeline: imagePipeline,
+                transitionNamespace: transitionNamespace
             ) {
-                onSelect(item.photo)
+                onSelect(item)
             }
             .onGeometryChange(for: Bool.self) { proxy in
                 let frame = proxy.frame(in: .scrollView)
@@ -219,9 +221,12 @@ struct TodayView: View {
 }
 
 #Preview {
+    @Previewable @Namespace var transitionNamespace
+
     TodayView(
         viewModel: TodayPreviewFixtures.makeViewModel(),
         imagePipeline: TodayPreviewFixtures.imagePipeline,
+        transitionNamespace: transitionNamespace,
         onSelect: { _ in }
     )
 }

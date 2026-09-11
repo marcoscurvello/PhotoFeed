@@ -64,7 +64,7 @@ struct PhotoCardView: View {
                 .clipShape(RoundedRectangle(cornerRadius: style.cornerRadius, style: .continuous))
                 .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(PhotoCardButtonStyle())
         .accessibilityElement(children: .combine)
         .accessibilityLabel(accessibilityLabel)
     }
@@ -101,6 +101,17 @@ struct PhotoCardView: View {
     private var accessibilityLabel: String {
         let attribution = photo.description.map { "\($0), photo by \(photo.user.name)" } ?? "Photo by \(photo.user.name)"
         return isSponsored ? "Sponsored, \(attribution)" : attribution
+    }
+
+    private struct PhotoCardButtonStyle: ButtonStyle {
+        func makeBody(configuration: Configuration) -> some View {
+            configuration.label
+                .scaleEffect(configuration.isPressed ? 0.97 : 1)
+                .animation(
+                    .spring(duration: 0.24, bounce: 0),
+                    value: configuration.isPressed
+                )
+        }
     }
 }
 

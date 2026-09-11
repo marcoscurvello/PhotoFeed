@@ -11,38 +11,29 @@ struct ContentView: View {
 
     let dependencies: AppDependencies
 
-    @State private var selectedPhoto: Photo?
+    @Namespace private var detailTransitionNamespace
+    @State private var selectedItem: TodayFeedItem?
 
     var body: some View {
-        NavigationStack {
-            TodayView(
-                viewModel: dependencies.todayViewModel,
-                imagePipeline: dependencies.imagePipeline
-            ) { photo in
-                selectedPhoto = photo
-            }
-            .navigationDestination(isPresented: isShowingDetail) {
-                if let selectedPhoto {
-                    DetailView(
-                        viewModel: dependencies.makeDetailViewModel(for: selectedPhoto),
-                        imagePipeline: dependencies.imagePipeline
-                    )
-                }
-            }
+        TodayView(
+            viewModel: dependencies.todayViewModel,
+            imagePipeline: dependencies.imagePipeline,
+            transitionNamespace: detailTransitionNamespace
+        ) { item in
+            selectedItem = item
         }
-    }
-
-    private var isShowingDetail: Binding<Bool> {
-        Binding(
-            get: {
-                selectedPhoto != nil
-            },
-            set: { isPresented in
-                if !isPresented {
-                    selectedPhoto = nil
-                }
-            }
-        )
+        .fullScreenCover(item: $selectedItem) { item in
+            DetailView(
+                viewModel: dependencies.makeDetailViewModel(for: item.photo),
+                imagePipeline: dependencies.imagePipeline
+            )
+            .navigationTransition(
+                .zoom(
+                    sourceID: item.id,
+                    in: detailTransitionNamespace
+                )
+            )
+        }
     }
 }
 
