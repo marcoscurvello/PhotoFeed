@@ -156,3 +156,15 @@ struct ZoomablePhotoView: View {
         )
     }
 }
+
+#Preview {
+    @Previewable @State var isZoomed = false
+
+    ZoomablePhotoView(
+        photo: TodayPreviewFixtures.photo,
+        imagePipeline: TodayPreviewFixtures.imagePipeline,
+        isSelected: true,
+        isZoomed: $isZoomed
+    )
+    .background(.black)
+}

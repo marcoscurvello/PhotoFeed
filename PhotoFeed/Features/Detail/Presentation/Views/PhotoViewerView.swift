@@ -163,3 +163,11 @@ struct PhotoViewerView: View {
         return "\(index + 1) / \(photos.count)"
     }
 }
+
+#Preview {
+    PhotoViewerView(
+        photos: TodayPreviewFixtures.photos,
+        initialPhotoID: TodayPreviewFixtures.photo.id,
+        imagePipeline: TodayPreviewFixtures.imagePipeline
+    )
+}
