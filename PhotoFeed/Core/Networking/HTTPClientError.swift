@@ -10,5 +10,5 @@ import Foundation
 nonisolated enum HTTPClientError: Error {
     case invalidURL
     case invalidResponse
-    case unacceptableStatusCode(Int, Data)
+    case unacceptableStatusCode(Int, Data, retryAfter: Date? = nil)
 }

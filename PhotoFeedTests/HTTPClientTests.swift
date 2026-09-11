@@ -56,7 +56,7 @@ struct HTTPClientTests {
         #expect(response == TestResponse(value: "success"))
     }
 
-    @Test("Non-successful HTTP status throws the status code and response body")
+    @Test("Non successful HTTP status throws the status code and response body")
     func rejectsUnacceptableStatusCode() async throws {
         let responseData = Data("rate limited".utf8)
 
@@ -81,9 +81,10 @@ struct HTTPClientTests {
             Issue.record("Expected the request to fail")
         } catch let error as HTTPClientError {
             switch error {
-            case .unacceptableStatusCode(let statusCode, let data):
+            case .unacceptableStatusCode(let statusCode, let data, let retryAfter):
                 #expect(statusCode == 429)
                 #expect(data == responseData)
+                #expect(retryAfter == nil)
 
             default:
                 Issue.record("Expected unacceptableStatusCode, received \(error)")
@@ -93,7 +94,106 @@ struct HTTPClientTests {
         }
     }
 
-    @Test("Non-HTTP response is rejected")
+    @Test("Retry-After delta seconds is converted to a deadline")
+    func parsesRetryAfterDeltaSeconds() async throws {
+        defer { URLProtocolStub.handler = nil }
+        let responseData = Data("rate limited".utf8)
+        for (headerValue, delay) in [(" 0 ", 0.0), ("120", 120.0)] {
+            let receivedAt = Date()
+            let response = try #require(
+                HTTPURLResponse(
+                    url: URL(string: "https://api.unsplash.com/photos")!,
+                    statusCode: 429,
+                    httpVersion: nil,
+                    headerFields: ["Retry-After": headerValue]
+                )
+            )
+
+            URLProtocolStub.handler = { _ in (response, responseData) }
+
+            do {
+                _ = try await makeClient().data(for: HTTPRequest(path: "photos"))
+                Issue.record("Expected the request to fail")
+            } catch let HTTPClientError.unacceptableStatusCode(_, data, retryAfter) {
+                #expect(data == responseData)
+                let deadline = try #require(retryAfter)
+                #expect(deadline >= receivedAt.addingTimeInterval(delay))
+                #expect(deadline <= Date().addingTimeInterval(delay))
+            } catch {
+                Issue.record("Unexpected error: \(error)")
+            }
+        }
+
+    }
+
+    @Test("Retry-After HTTP dates are parsed")
+    func parsesRetryAfterHTTPDate() async throws {
+        defer { URLProtocolStub.handler = nil }
+        let expected = Date(timeIntervalSince1970: 1_784_073_600)
+        let headerValues = [
+            "Wed, 15 Jul 2026 00:00:00 GMT",
+            "Wednesday, 15-Jul-26 00:00:00 GMT",
+            "Wed Jul 15 00:00:00 2026"
+        ]
+
+        for headerValue in headerValues {
+            let response = try #require(
+                HTTPURLResponse(
+                    url: URL(string: "https://api.unsplash.com/photos")!,
+                    statusCode: 503,
+                    httpVersion: nil,
+                    headerFields: ["Retry-After": headerValue]
+                )
+            )
+            URLProtocolStub.handler = { _ in (response, Data()) }
+
+            do {
+                _ = try await makeClient().data(for: HTTPRequest(path: "photos"))
+                Issue.record("Expected the request to fail")
+            } catch let HTTPClientError.unacceptableStatusCode(_, _, retryAfter) {
+                let deadline = try #require(retryAfter)
+                #expect(deadline == expected)
+            } catch {
+                Issue.record("Unexpected error: \(error)")
+            }
+        }
+    }
+
+    @Test("Missing or malformed Retry-After is ignored")
+    func ignoresInvalidRetryAfter() async throws {
+        defer { URLProtocolStub.handler = nil }
+        for headerFields in [
+            [String: String](),
+            ["Retry-After": "not-a-date"],
+            ["Retry-After": "-1"],
+            ["Retry-After": "1.5"],
+            ["Retry-After": ""],
+            ["Retry-After": "   "]
+        ] {
+            let response = try #require(
+                HTTPURLResponse(
+                    url: URL(string: "https://api.unsplash.com/photos")!,
+                    statusCode: 500,
+                    httpVersion: nil,
+                    headerFields: headerFields
+                )
+            )
+            URLProtocolStub.handler = { _ in (response, Data("body".utf8)) }
+
+            do {
+                _ = try await makeClient().data(for: HTTPRequest(path: "photos"))
+                Issue.record("Expected the request to fail")
+            } catch let HTTPClientError.unacceptableStatusCode(statusCode, data, retryAfter) {
+                #expect(statusCode == 500)
+                #expect(data == Data("body".utf8))
+                #expect(retryAfter == nil)
+            } catch {
+                Issue.record("Unexpected error: \(error)")
+            }
+        }
+    }
+
+    @Test("Non HTTP response is rejected")
     func rejectsNonHTTPResponse() async throws {
         URLProtocolStub.handler = { request in
             let url = try #require(request.url)
@@ -152,7 +252,7 @@ struct HTTPClientTests {
             let _: TestResponse = try await client.send(request)
             Issue.record("Expected decoding to fail")
         } catch is DecodingError {
-            // Expected.
+            // Expected
         } catch {
             Issue.record("Expected DecodingError, received \(error)")
         }

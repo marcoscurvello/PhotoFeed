@@ -9,12 +9,16 @@ import SwiftUI
 
 struct TodayView: View {
 
+    @Environment(\.scenePhase) private var scenePhase
+
     let viewModel: TodayViewModel
     let imagePipeline: RemoteImagePipeline
     let onSelect: (Photo) -> Void
 
     @State private var visibleItemIDs: Set<TodayFeedItem.ID> = []
     @State private var visibilityRevision = 0
+    @State private var hasAppeared = false
+    @State private var isSponsoredLoadingActive = false
 
     var body: some View {
         ScrollView {
@@ -25,6 +29,17 @@ struct TodayView: View {
             .padding(.bottom, 24)
         }
         .scrollIndicators(.hidden)
+        .onAppear {
+            hasAppeared = true
+            updateSponsoredLoadingActivity()
+        }
+        .onDisappear {
+            hasAppeared = false
+            updateSponsoredLoadingActivity()
+        }
+        .onChange(of: scenePhase) {
+            updateSponsoredLoadingActivity()
+        }
         .task {
             await viewModel.load()
         }
@@ -56,12 +71,10 @@ struct TodayView: View {
 
     @ViewBuilder
     private var photoFeed: some View {
-        let styles = photoStyles
-
         ForEach(viewModel.items) { item in
             TodayPhotoRow(
                 item: item,
-                style: styles[item.id] ?? .card,
+                style: viewModel.photoStyle(for: item),
                 imagePipeline: imagePipeline
             ) {
                 onSelect(item.photo)
@@ -83,23 +96,6 @@ struct TodayView: View {
         }
 
         paginationFooter
-    }
-
-    private var photoStyles: [TodayFeedItem.ID: PhotoCardStyle] {
-        var styles: [TodayFeedItem.ID: PhotoCardStyle] = [:]
-        var organicIndex = 0
-
-        for item in viewModel.items {
-            if item.isSponsored {
-                styles[item.id] = .card
-                continue
-            }
-
-            styles[item.id] = organicIndex.isMultiple(of: 4) ? .fullBleed : .card
-            organicIndex += 1
-        }
-
-        return styles
     }
 
     @ViewBuilder
@@ -186,6 +182,20 @@ struct TodayView: View {
         }
 
         viewModel.updateCurrentVisibleItem(bottomVisibleItem.id)
+    }
+
+    private func updateSponsoredLoadingActivity() {
+        let isActive = hasAppeared && scenePhase == .active
+        guard isSponsoredLoadingActive != isActive else {
+            return
+        }
+
+        isSponsoredLoadingActive = isActive
+        viewModel.setSponsoredLoadingActive(isActive)
+
+        if isActive {
+            visibilityRevision &+= 1
+        }
     }
 
     private func errorView(message: String) -> some View {
