@@ -9,8 +9,14 @@ import Foundation
 
 nonisolated struct HTTPClient: Sendable {
 
-    private enum HeaderFields {
-        static let retryAfter = "Retry-After"
+    private enum Constants {
+        static let retryAfterHeader = "Retry-After"
+        static let localeIdentifier = "en_US_POSIX"
+        static let dateFormats: [String] = [
+            "EEE',' dd MMM yyyy HH':'mm':'ss zzz",
+            "EEEE',' dd-MMM-yy HH':'mm':'ss zzz",
+            "EEE MMM d HH':'mm':'ss yyyy"
+        ]
     }
 
     typealias HTTPResponse = Decodable & Sendable
@@ -70,7 +76,7 @@ nonisolated struct HTTPClient: Sendable {
     }
 
     private func retryAfter(from response: HTTPURLResponse, receivedAt: Date) -> Date? {
-        guard let value = response.value(forHTTPHeaderField: HeaderFields.retryAfter)?.trimmingCharacters(in: .whitespacesAndNewlines),
+        guard let value = response.value(forHTTPHeaderField: Constants.retryAfterHeader)?.trimmingCharacters(in: .whitespacesAndNewlines),
               !value.isEmpty else {
             return nil
         }
@@ -84,13 +90,10 @@ nonisolated struct HTTPClient: Sendable {
     }
 
     private func formattedDate(value: String) -> Date? {
-        for format in [
-            "EEE',' dd MMM yyyy HH':'mm':'ss zzz",
-            "EEEE',' dd-MMM-yy HH':'mm':'ss zzz",
-            "EEE MMM d HH':'mm':'ss yyyy"
-        ] {
+        for format in Constants.dateFormats {
+
             let formatter = DateFormatter()
-            formatter.locale = Locale(identifier: "en_US_POSIX")
+            formatter.locale = Locale(identifier: Constants.localeIdentifier)
             formatter.timeZone = TimeZone(secondsFromGMT: 0)
             formatter.calendar = Calendar(identifier: .gregorian)
             formatter.isLenient = false
