@@ -15,6 +15,7 @@ struct TodayView: View {
     let imagePipeline: RemoteImagePipeline
     let onSelect: (Photo) -> Void
 
+    @State private var bottomVisibleItemID: TodayFeedItem.ID?
     @State private var visibleItemIDs: Set<TodayFeedItem.ID> = []
     @State private var visibilityRevision = 0
     @State private var hasAppeared = false
@@ -26,9 +27,18 @@ struct TodayView: View {
                 header
                 content
             }
+            .scrollTargetLayout()
             .padding(.bottom, 24)
         }
         .scrollIndicators(.hidden)
+        .scrollPosition(id: $bottomVisibleItemID, anchor: .bottom)
+        .task(id: bottomVisibleItemID) {
+            viewModel.updateCurrentVisibleItem(bottomVisibleItemID)
+            await viewModel.loadIfNeeded(bottomVisibleItemID: bottomVisibleItemID)
+        }
+        .task(id: visibilityRevision) {
+            await updateBottomVisibleItem()
+        }
         .onAppear {
             hasAppeared = true
             updateSponsoredLoadingActivity()
@@ -39,12 +49,6 @@ struct TodayView: View {
         }
         .onChange(of: scenePhase) {
             updateSponsoredLoadingActivity()
-        }
-        .task {
-            await viewModel.load()
-        }
-        .task(id: visibilityRevision) {
-            await updateBottomVisibleItem()
         }
     }
 
@@ -60,13 +64,6 @@ struct TodayView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 20)
         .padding(.top, 12)
-    }
-
-    private var loadingView: some View {
-        ProgressView()
-            .frame(maxWidth: .infinity)
-            .padding(.horizontal, 20)
-            .padding(.top, 80)
     }
 
     @ViewBuilder
@@ -102,14 +99,17 @@ struct TodayView: View {
     private var content: some View {
         if viewModel.items.isEmpty {
             switch viewModel.state {
-            case .ready:
-                photoFeed
+                case .ready:
+                    photoFeed
 
-            case .loading:
-                loadingView
+                case .loading:
+                    ProgressView()
+                        .frame(maxWidth: .infinity)
+                        .padding(.horizontal, 20)
+                        .padding(.top, 80)
 
-            case .failed(let message):
-                errorView(message: message)
+                case .failed(let message):
+                    errorView(message: message)
             }
         } else {
             photoFeed
@@ -119,30 +119,25 @@ struct TodayView: View {
     private var paginationFooter: some View {
         VStack {
             switch viewModel.state {
-            case .loading:
-                ProgressView()
+                case .loading:
+                    ProgressView()
+                        .padding(.vertical, 24)
+
+                case .failed:
+                    Button("Retry") {
+                        Task {
+                            await viewModel.retry()
+                        }
+                    }
+                    .buttonStyle(.borderedProminent)
                     .padding(.vertical, 24)
 
-            case .failed:
-                Button("Retry") {
-                    Task {
-                        await viewModel.retry()
-                    }
-                }
-                .buttonStyle(.borderedProminent)
-                .padding(.vertical, 24)
-
-            case .ready:
-                Color.clear
-                    .frame(height: 1)
+                case .ready:
+                    Color.clear
+                        .frame(height: 1)
             }
         }
         .frame(maxWidth: .infinity)
-        .onAppear {
-            Task {
-                await viewModel.load()
-            }
-        }
     }
 
     private func updateVisibility(of id: TodayFeedItem.ID, isVisible: Bool) {

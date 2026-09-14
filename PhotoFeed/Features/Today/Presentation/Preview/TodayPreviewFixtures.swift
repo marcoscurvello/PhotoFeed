@@ -65,8 +65,23 @@ enum TodayPreviewFixtures {
         let photos: [Photo]
         let sponsoredPhotos: [Photo]
 
-        func photos(page: Int, perPage: Int) async throws -> [Photo] {
-            Array(photos.prefix(perPage))
+        func photos(page: Int, perPage: Int) async throws -> PhotoPage {
+            let startIndex = (page - 1) * perPage
+            let pagePhotos: [Photo]
+
+            if startIndex < photos.count {
+                let endIndex = min(startIndex + perPage, photos.count)
+                pagePhotos = Array(photos[startIndex..<endIndex])
+            } else {
+                pagePhotos = []
+            }
+
+            return PhotoPage(
+                photos: pagePhotos,
+                page: page,
+                perPage: perPage,
+                total: photos.count
+            )
         }
 
         func sponsoredPhotos(count: Int) async throws -> [Photo] {
