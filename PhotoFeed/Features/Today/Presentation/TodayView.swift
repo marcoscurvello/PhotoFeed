@@ -16,10 +16,7 @@ struct TodayView: View {
     let onSelect: (Photo) -> Void
 
     @State private var bottomVisibleItemID: TodayFeedItem.ID?
-    @State private var visibleItemIDs: Set<TodayFeedItem.ID> = []
-    @State private var visibilityRevision = 0
     @State private var hasAppeared = false
-    @State private var isSponsoredLoadingActive = false
 
     var body: some View {
         ScrollView {
@@ -27,17 +24,26 @@ struct TodayView: View {
                 header
                 content
             }
-            .scrollTargetLayout()
             .padding(.bottom, 24)
         }
         .scrollIndicators(.hidden)
-        .scrollPosition(id: $bottomVisibleItemID, anchor: .bottom)
+        .overlayPreferenceValue(TodayFeedItemBoundsPreferenceKey.self) { anchors in
+            GeometryReader { proxy in
+                let visibleItemID = bottomVisibleItemID(anchors: anchors, in: proxy)
+
+                Color.clear
+                    .onAppear {
+                        updateBottomVisibleItem(visibleItemID)
+                    }
+                    .onChange(of: visibleItemID) { _, newValue in
+                        updateBottomVisibleItem(newValue)
+                    }
+            }
+            .allowsHitTesting(false)
+        }
         .task(id: bottomVisibleItemID) {
             viewModel.updateCurrentVisibleItem(bottomVisibleItemID)
             await viewModel.loadIfNeeded(bottomVisibleItemID: bottomVisibleItemID)
-        }
-        .task(id: visibilityRevision) {
-            await updateBottomVisibleItem()
         }
         .onAppear {
             hasAppeared = true
@@ -76,20 +82,10 @@ struct TodayView: View {
             ) {
                 onSelect(item.photo)
             }
-            .onGeometryChange(for: Bool.self) { proxy in
-                let frame = proxy.frame(in: .scrollView)
-                guard let bounds = proxy.bounds(of: .scrollView) else {
-                    return false
-                }
-
-                let viewport = CGRect(origin: .zero, size: bounds.size)
-                return frame.intersection(viewport).height > 0
-            } action: { isVisible in
-                updateVisibility(of: item.id, isVisible: isVisible)
-            }
-            .onDisappear {
-                removeVisibleItem(item.id)
-            }
+            .anchorPreference(
+                key: TodayFeedItemBoundsPreferenceKey.self,
+                value: .bounds
+            ) { [item.id: $0] }
         }
 
         paginationFooter
@@ -140,57 +136,30 @@ struct TodayView: View {
         .frame(maxWidth: .infinity)
     }
 
-    private func updateVisibility(of id: TodayFeedItem.ID, isVisible: Bool) {
-        let didChange: Bool
-
-        if isVisible {
-            didChange = visibleItemIDs.insert(id).inserted
-        } else {
-            didChange = visibleItemIDs.remove(id) != nil
-        }
-
-        guard didChange else {
-            return
-        }
-
-        visibilityRevision &+= 1
-    }
-
-    private func removeVisibleItem(_ id: TodayFeedItem.ID) {
-        guard visibleItemIDs.remove(id) != nil else {
-            return
-        }
-
-        visibilityRevision &+= 1
-    }
-
-    private func updateBottomVisibleItem() async {
-        await Task.yield()
-
-        guard !Task.isCancelled else {
-            return
-        }
-
-        guard let bottomVisibleItem = viewModel.items.last(where: { visibleItemIDs.contains($0.id) }) else {
-            viewModel.updateCurrentVisibleItem(nil)
-            return
-        }
-
-        viewModel.updateCurrentVisibleItem(bottomVisibleItem.id)
-    }
-
     private func updateSponsoredLoadingActivity() {
         let isActive = hasAppeared && scenePhase == .active
-        guard isSponsoredLoadingActive != isActive else {
-            return
-        }
-
-        isSponsoredLoadingActive = isActive
         viewModel.setSponsoredLoadingActive(isActive)
 
         if isActive {
-            visibilityRevision &+= 1
+            viewModel.updateCurrentVisibleItem(bottomVisibleItemID)
         }
+    }
+
+    private func updateBottomVisibleItem(_ id: TodayFeedItem.ID?) {
+        bottomVisibleItemID = id
+    }
+
+    private func bottomVisibleItemID(
+        anchors: [TodayFeedItem.ID: Anchor<CGRect>],
+        in proxy: GeometryProxy
+    ) -> TodayFeedItem.ID? {
+
+        let viewport = proxy.frame(in: .local)
+        return anchors
+            .map { (id: $0.key, frame: proxy[$0.value]) }
+            .filter { $0.frame.intersection(viewport).height > 0 }
+            .max { $0.frame.maxY < $1.frame.maxY }?
+            .id
     }
 
     private func errorView(message: String) -> some View {

@@ -191,7 +191,7 @@ final class TodayViewModel {
             isSponsoredLoadingActive,
             sponsoredTask == nil,
             pendingSponsoredPhotos.count <= sponsoredConfiguration.lowWatermark
-                else {
+        else {
             return
         }
 
