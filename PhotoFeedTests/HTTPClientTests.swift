@@ -56,6 +56,63 @@ struct HTTPClientTests {
         #expect(response == TestResponse(value: "success"))
     }
 
+    @Test("Metadata responses normalize header names")
+    func decodesResponseWithNormalizedHeaders() async throws {
+        let responseData = try JSONEncoder().encode(TestResponse(value: "success"))
+
+        URLProtocolStub.handler = { request in
+            let url = try #require(request.url)
+            let response = try #require(
+                HTTPURLResponse(
+                    url: url,
+                    statusCode: 200,
+                    httpVersion: nil,
+                    headerFields: ["X-Total": "25", "X-Per-Page": "10"]
+                )
+            )
+            return (response, responseData)
+        }
+        defer { URLProtocolStub.handler = nil }
+
+        let response: HTTPResponseDecoded<TestResponse> = try await makeClient()
+            .sendWithMetadata(HTTPRequest(path: "photos"))
+
+        #expect(response.value == TestResponse(value: "success"))
+        #expect(response[header: "x-total"] == "25")
+        #expect(response[header: "X-PER-PAGE"] == "10")
+    }
+
+    @Test("Metadata responses preserve non-success status handling")
+    func metadataResponseRejectsUnacceptableStatusCode() async throws {
+        let responseData = Data("rate limited".utf8)
+
+        URLProtocolStub.handler = { request in
+            let url = try #require(request.url)
+            let response = try #require(
+                HTTPURLResponse(
+                    url: url,
+                    statusCode: 429,
+                    httpVersion: nil,
+                    headerFields: ["Retry-After": "120"]
+                )
+            )
+            return (response, responseData)
+        }
+        defer { URLProtocolStub.handler = nil }
+
+        do {
+            let _: HTTPResponseDecoded<TestResponse> = try await makeClient()
+                .sendWithMetadata(HTTPRequest(path: "photos"))
+            Issue.record("Expected the request to fail")
+        } catch let HTTPClientError.unacceptableStatusCode(statusCode, data, retryAfter) {
+            #expect(statusCode == 429)
+            #expect(data == responseData)
+            #expect(retryAfter != nil)
+        } catch {
+            Issue.record("Unexpected error: \(error)")
+        }
+    }
+
     @Test("Non-successful HTTP status throws the status code and response body")
     func rejectsUnacceptableStatusCode() async throws {
         let responseData = Data("rate limited".utf8)

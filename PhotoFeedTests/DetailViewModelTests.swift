@@ -176,8 +176,8 @@ private extension DetailViewModelTests {
 
     func makeFixture() async throws -> Fixture {
         let repository = FixturePhotosRepository()
-        let photos = try await repository.photos(page: 1, perPage: 10)
-        let photo = try #require(photos.first)
+        let photoPage = try await repository.photos(page: 1, perPage: 10)
+        let photo = try #require(photoPage.photos.first)
 
         async let userPhotos = repository.userPhotos(username: photo.user.username, page: 1, perPage: 10)
         async let statistics = repository.statistics(photoID: photo.id)

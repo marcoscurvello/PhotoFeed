@@ -16,23 +16,23 @@ struct TodayViewModelTests {
     @Test("Loads unique organic pages, preserves styles, and stops after a partial page")
     @MainActor
     func loadsOrganicPagesAndStopsAfterPartialPage() async {
-        let pageOne = (1...10).map { makePhoto(id: "p\($0)") }
+        let pageOne = (1...20).map { makePhoto(id: "p\($0)") }
         let pageTwo = [
-            makePhoto(id: "p10"),
-            makePhoto(id: "p11"),
-            makePhoto(id: "p12")
+            makePhoto(id: "p20"),
+            makePhoto(id: "p21"),
+            makePhoto(id: "p22")
         ]
 
         let repository = ControlledTodayRepository(pages: [pageOne, pageTwo])
         let viewModel = TodayViewModel(repository: repository)
 
-        await viewModel.load()
-        await viewModel.load()
-        await viewModel.load()
+        await viewModel.loadIfNeeded(bottomVisibleItemID: nil)
+        await viewModel.loadIfNeeded(bottomVisibleItemID: .organic(pageOne[19].id))
+        await viewModel.loadIfNeeded(bottomVisibleItemID: .organic(pageTwo[2].id))
 
         let organicItems = viewModel.items.filter { !$0.isSponsored }
 
-        #expect(organicItems.map(\.photo.id.rawValue) == (1...12).map { "p\($0)" })
+        #expect(organicItems.map(\.photo.id.rawValue) == (1...22).map { "p\($0)" })
 
         #expect(await repository.organicRequests == [1, 2])
         #expect(viewModel.state == .ready)
@@ -40,6 +40,38 @@ struct TodayViewModelTests {
         for (index, item) in organicItems.enumerated() {
             #expect(isFullBleed(viewModel.photoStyle(for: item)) == index.isMultiple(of: 4))
         }
+    }
+
+    @Test("Initial loading does not advance pagination after the feed is populated")
+    @MainActor
+    func initialLoadingIsIdempotent() async {
+        let pageOne = (1...20).map { makePhoto(id: "p\($0)") }
+        let pageTwo = (21...40).map { makePhoto(id: "p\($0)") }
+        let repository = ControlledTodayRepository(pages: [pageOne, pageTwo])
+        let viewModel = TodayViewModel(repository: repository)
+
+        await viewModel.loadIfNeeded(bottomVisibleItemID: nil)
+        await viewModel.loadIfNeeded(bottomVisibleItemID: nil)
+
+        #expect(await repository.organicRequests == [1])
+    }
+
+    @Test("Only the last feed item triggers the next page")
+    @MainActor
+    func loadsNextPageAtFeedBoundary() async {
+        let pageOne = (1...20).map { makePhoto(id: "p\($0)") }
+        let pageTwo = (21...40).map { makePhoto(id: "p\($0)") }
+        let repository = ControlledTodayRepository(pages: [pageOne, pageTwo])
+        let viewModel = TodayViewModel(repository: repository)
+
+        await viewModel.loadIfNeeded(bottomVisibleItemID: nil)
+        await viewModel.loadIfNeeded(bottomVisibleItemID: .organic(pageOne[0].id))
+
+        #expect(await repository.organicRequests == [1])
+
+        await viewModel.loadIfNeeded(bottomVisibleItemID: .organic(pageOne[19].id))
+
+        #expect(await repository.organicRequests == [1, 2])
     }
 
     @Test("Retry loads the same organic page after failure")
@@ -53,7 +85,7 @@ struct TodayViewModelTests {
         let repository = RetryingOrganicRepository(photos: photos)
         let viewModel = TodayViewModel(repository: repository)
 
-        await viewModel.load()
+        await viewModel.loadIfNeeded(bottomVisibleItemID: nil)
 
         guard case .failed = viewModel.state else {
             Issue.record("Expected the initial organic request to fail.")
@@ -72,8 +104,8 @@ struct TodayViewModelTests {
     @Test("Organic pagination continues while sponsored loading is blocked")
     @MainActor
     func sponsoredLoadingDoesNotBlockOrganicPagination() async {
-        let pageOne = (1...10).map { makePhoto(id: "p\($0)") }
-        let pageTwo = (11...20).map { makePhoto(id: "p\($0)") }
+        let pageOne = (1...20).map { makePhoto(id: "p\($0)") }
+        let pageTwo = (21...40).map { makePhoto(id: "p\($0)") }
 
         let repository = ControlledTodayRepository(pages: [pageOne, pageTwo])
         let viewModel = TodayViewModel(
@@ -90,11 +122,11 @@ struct TodayViewModelTests {
 
         await repository.waitForSponsoredRequest(1)
 
-        await viewModel.load()
-        await viewModel.load()
+        await viewModel.loadIfNeeded(bottomVisibleItemID: nil)
+        await viewModel.loadIfNeeded(bottomVisibleItemID: .organic(pageOne[19].id))
 
         #expect(viewModel.state == .ready)
-        #expect(viewModel.items.count == 20)
+        #expect(viewModel.items.count == 40)
         #expect(viewModel.items.allSatisfy { !$0.isSponsored })
         #expect(await repository.organicRequests == [1, 2])
         #expect(await repository.sponsoredRequestCount == 1)
@@ -121,7 +153,7 @@ struct TodayViewModelTests {
             )
         )
 
-        await viewModel.load()
+        await viewModel.loadIfNeeded(bottomVisibleItemID: nil)
 
         viewModel.setSponsoredLoadingActive(true)
         await repository.waitForSponsoredRequest(1)
@@ -181,7 +213,7 @@ struct TodayViewModelTests {
             )
         )
 
-        await viewModel.load()
+        await viewModel.loadIfNeeded(bottomVisibleItemID: nil)
 
         viewModel.setSponsoredLoadingActive(true)
         await repository.waitForSponsoredRequest(1)
@@ -229,7 +261,7 @@ struct TodayViewModelTests {
             )
         )
 
-        await viewModel.load()
+        await viewModel.loadIfNeeded(bottomVisibleItemID: nil)
 
         viewModel.setSponsoredLoadingActive(true)
         await repository.waitForSponsoredRequest(1)
@@ -282,7 +314,7 @@ struct TodayViewModelTests {
             )
         )
 
-        await viewModel.load()
+        await viewModel.loadIfNeeded(bottomVisibleItemID: nil)
 
         viewModel.setSponsoredLoadingActive(true)
         await repository.waitForSponsoredRequest(1)
@@ -338,7 +370,7 @@ struct TodayViewModelTests {
 
         await repository.failSponsored(URLError(.timedOut))
 
-        await viewModel.load()
+        await viewModel.loadIfNeeded(bottomVisibleItemID: nil)
 
         #expect(viewModel.state == .ready)
         #expect(viewModel.items.count == 10)
@@ -365,7 +397,7 @@ struct TodayViewModelTests {
             )
         )
 
-        await viewModel.load()
+        await viewModel.loadIfNeeded(bottomVisibleItemID: nil)
 
         viewModel.setSponsoredLoadingActive(true)
         await repository.waitForSponsoredRequest(1)
@@ -465,15 +497,20 @@ private actor ControlledTodayRepository: PhotosRepository {
         sponsoredRequestEventContinuation = stream.continuation
     }
 
-    func photos(page: Int, perPage: Int) async throws -> [Photo] {
+    func photos(page: Int, perPage: Int) async throws -> PhotoPage {
         organicRequests.append(page)
 
-        guard pages.indices.contains(page - 1) else {
-            return []
-        }
+        let pagePhotos = pages.indices.contains(page - 1)
+            ? Array(pages[page - 1].prefix(perPage))
+            : []
 
-        return Array(
-            pages[page - 1].prefix(perPage)
+        let total = Set(pages.flatMap { $0 }.map(\.id)).count
+
+        return PhotoPage(
+            photos: pagePhotos,
+            page: page,
+            perPage: perPage,
+            total: total
         )
     }
 
@@ -547,7 +584,7 @@ private actor RetryingOrganicRepository: PhotosRepository {
         photosToReturn = photos
     }
 
-    func photos(page: Int, perPage: Int) async throws -> [Photo] {
+    func photos(page: Int, perPage: Int) async throws -> PhotoPage {
         requestedPages.append(page)
         attempt += 1
 
@@ -555,8 +592,11 @@ private actor RetryingOrganicRepository: PhotosRepository {
             throw URLError(.timedOut)
         }
 
-        return Array(
-            photosToReturn.prefix(perPage)
+        return PhotoPage(
+            photos: Array(photosToReturn.prefix(perPage)),
+            page: page,
+            perPage: perPage,
+            total: photosToReturn.count
         )
     }
 
