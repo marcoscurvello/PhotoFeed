@@ -92,6 +92,94 @@ nonisolated struct UnsplashAPITests {
         #expect(requestCounter.count == 1)
     }
 
+    @Test("Photo pagination combines the JSON array with response headers")
+    func decodesPhotoPaginationMetadata() async throws {
+        let requestCounter = RequestCounter()
+        UnsplashAPIURLProtocolStub.handler = { request in
+            let url = try #require(request.url)
+            let response = try #require(
+                HTTPURLResponse(
+                    url: url,
+                    statusCode: 200,
+                    httpVersion: nil,
+                    headerFields: ["X-Total": "21", "X-Per-Page": "10"]
+                )
+            )
+            return (response, Data(Self.photoJSON.utf8))
+        }
+        defer {
+            UnsplashAPIURLProtocolStub.handler = nil
+            UnsplashAPIURLProtocolStub.requestCounter = nil
+        }
+
+        let page = try await makeAPI(requestCounter: requestCounter)
+            .photosWithMetadata(page: 2, perPage: 10)
+
+        #expect(page.photos.map(\.id) == ["photo-1"])
+        #expect(page.page == 2)
+        #expect(page.perPage == 10)
+        #expect(page.total == 21)
+    }
+
+    @Test("Missing or malformed photo pagination headers are rejected")
+    func rejectsInvalidPhotoPaginationMetadata() async throws {
+        let requestCounter = RequestCounter()
+        defer {
+            UnsplashAPIURLProtocolStub.handler = nil
+            UnsplashAPIURLProtocolStub.requestCounter = nil
+        }
+
+        let invalidHeaderFields: [[String: String]] = [
+            [:],
+            ["X-Total": "not-a-number", "X-Per-Page": "10"],
+            ["X-Total": "21", "X-Per-Page": "0"],
+            ["X-Total": "-1", "X-Per-Page": "10"]
+        ]
+
+        for headerFields in invalidHeaderFields {
+            UnsplashAPIURLProtocolStub.handler = { request in
+                let url = try #require(request.url)
+                let response = try #require(
+                    HTTPURLResponse(
+                        url: url,
+                        statusCode: 200,
+                        httpVersion: nil,
+                        headerFields: headerFields
+                    )
+                )
+                return (response, Data(Self.photoJSON.utf8))
+            }
+
+            do {
+                _ = try await makeAPI(requestCounter: requestCounter)
+                    .photosWithMetadata(page: 1, perPage: 10)
+                Issue.record("Expected invalid pagination headers to fail")
+            } catch let error as UnsplashAPIError {
+                #expect(error == .invalidPaginationHeaders)
+            } catch {
+                Issue.record("Unexpected error: \(error)")
+            }
+        }
+    }
+
+    private static let photoJSON = #"""
+    [{
+      "id": "photo-1", "width": 1200, "height": 800, "color": null,
+      "blur_hash": null, "description": null, "alt_description": "A photo",
+      "urls": {
+        "raw": "https://images.unsplash.com/raw", "full": "https://images.unsplash.com/full",
+        "regular": "https://images.unsplash.com/regular", "small": "https://images.unsplash.com/small",
+        "thumb": "https://images.unsplash.com/thumb"
+      },
+      "links": { "html": "https://unsplash.com/photos/photo-1", "download_location": null },
+      "user": {
+        "id": "user-1", "username": "user", "name": "User",
+        "profile_image": { "small": "https://images.unsplash.com/avatar-small", "medium": "https://images.unsplash.com/avatar-medium", "large": "https://images.unsplash.com/avatar-large" },
+        "links": { "html": "https://unsplash.com/@user", "photos": "https://api.unsplash.com/users/user/photos" }
+      }
+    }]
+    """#
+
     private func makeAPI(requestCounter: RequestCounter) -> UnsplashAPI {
         UnsplashAPIURLProtocolStub.requestCounter = requestCounter
 
@@ -133,6 +221,7 @@ private final class RequestCounter: @unchecked Sendable {
 private final class UnsplashAPIURLProtocolStub: URLProtocol, @unchecked Sendable {
 
     nonisolated(unsafe) static var requestCounter: RequestCounter?
+    nonisolated(unsafe) static var handler: ((URLRequest) throws -> (HTTPURLResponse, Data))?
 
     override class func canInit(with request: URLRequest) -> Bool {
         true
@@ -144,6 +233,18 @@ private final class UnsplashAPIURLProtocolStub: URLProtocol, @unchecked Sendable
 
     override func startLoading() {
         Self.requestCounter?.increment()
+
+        if let handler = Self.handler {
+            do {
+                let (response, data) = try handler(request)
+                client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+                client?.urlProtocol(self, didLoad: data)
+                client?.urlProtocolDidFinishLoading(self)
+            } catch {
+                client?.urlProtocol(self, didFailWithError: error)
+            }
+            return
+        }
 
         guard
             let url = request.url,

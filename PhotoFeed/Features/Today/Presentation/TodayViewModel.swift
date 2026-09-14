@@ -13,7 +13,7 @@ import Observation
 final class TodayViewModel {
 
     private enum Constants {
-        static let pageSize = 10
+        static let defaultPageSize = 20
     }
 
     enum State: Equatable {
@@ -23,9 +23,9 @@ final class TodayViewModel {
     }
 
     private let repository: any PhotosRepository
-    private let insertionPolicy: SponsoredInsertionPolicy
-    private let sponsoredConfiguration: SponsoredCoordinatorConfiguration
     private let sponsoredCoordinator: SponsoredCoordinator
+    private let sponsoredInsertionPolicy: SponsoredInsertionPolicy
+    private let sponsoredConfiguration: SponsoredCoordinatorConfiguration
 
     private(set) var items: [TodayFeedItem] = []
     private(set) var state: State = .ready
@@ -49,10 +49,13 @@ final class TodayViewModel {
         sponsoredConfiguration: SponsoredCoordinatorConfiguration = SponsoredCoordinatorConfiguration()
     ) {
         self.repository = repository
-        self.insertionPolicy = insertionPolicy
+        self.sponsoredInsertionPolicy = insertionPolicy
         self.sponsoredConfiguration = sponsoredConfiguration
 
-        self.sponsoredCoordinator = SponsoredCoordinator(repository: repository, configuration: sponsoredConfiguration)
+        self.sponsoredCoordinator = SponsoredCoordinator(
+            repository: repository,
+            configuration: sponsoredConfiguration
+        )
     }
 
     func setSponsoredLoadingActive(_ isActive: Bool) {
@@ -94,12 +97,22 @@ final class TodayViewModel {
         replenishSponsoredPhotosIfNeeded()
     }
 
-    func load() async {
+    func loadIfNeeded(bottomVisibleItemID: TodayFeedItem.ID?) async {
         guard state == .ready, let nextPage else {
             return
         }
 
-        await loadPage(nextPage)
+        if items.isEmpty {
+            guard nextPage == 1, bottomVisibleItemID == nil else {
+                return
+            }
+        } else {
+            guard bottomVisibleItemID == items.last?.id else {
+                return
+            }
+        }
+
+        await load(page: nextPage)
     }
 
     func retry() async {
@@ -107,7 +120,7 @@ final class TodayViewModel {
             return
         }
 
-        await loadPage(nextPage)
+        await load(page: nextPage)
     }
 
     func photoStyle(for item: TodayFeedItem) -> PhotoCardStyle {
@@ -118,34 +131,19 @@ final class TodayViewModel {
         return photoStyles[photo.id] ?? .card
     }
 
-    private func loadPage(_ page: Int) async {
+    private func load(page: Int) async {
         state = .loading
-        await loadOrganicPhotos(page: page)
-    }
 
-    private func loadOrganicPhotos(page: Int) async {
         do {
-            let photos = try await repository.photos(page: page, perPage: Constants.pageSize)
+            let photoPage = try await repository.photos(page: page, perPage: Constants.defaultPageSize)
 
             guard !Task.isCancelled else {
                 state = .ready
                 return
             }
 
-            guard !photos.isEmpty else {
-                nextPage = nil
-                state = .ready
-
-                insertPendingSponsoredPhotosIfPossible()
-                replenishSponsoredPhotosIfNeeded()
-                return
-            }
-
-            appendOrganicPhotos(photos)
-
-            nextPage = photos.count < Constants.pageSize
-            ? nil
-            : page + 1
+            appendOrganicPhotos(photoPage.photos)
+            nextPage = photoPage.nextPage
 
             state = .ready
 
@@ -245,7 +243,7 @@ final class TodayViewModel {
         }
 
         while let photo = pendingSponsoredPhotos.first {
-            guard let insertionIndex = insertionPolicy.insertionIndex(in: items, currentVisibleIndex: insertionBoundary) else {
+            guard let insertionIndex = sponsoredInsertionPolicy.insertionIndex(in: items, currentVisibleIndex: insertionBoundary) else {
                 return
             }
 

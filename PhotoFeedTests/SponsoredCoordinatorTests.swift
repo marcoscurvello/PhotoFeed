@@ -307,8 +307,8 @@ private actor ControlledSponsoredRepository: PhotosRepository {
         requestEventContinuation = stream.continuation
     }
 
-    func photos(page: Int, perPage: Int) async throws -> [Photo] {
-        []
+    func photos(page: Int, perPage: Int) async throws -> PhotoPage {
+        PhotoPage(photos: [], page: page, perPage: perPage, total: 0)
     }
 
     func sponsoredPhotos(count: Int) async throws -> [Photo] {

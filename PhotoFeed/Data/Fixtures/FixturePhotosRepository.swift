@@ -28,7 +28,7 @@ nonisolated struct FixturePhotosRepository: PhotosRepository, PhotoDetailReposit
         self.loader = loader
     }
 
-    func photos(page: Int, perPage: Int) async throws -> [Photo] {
+    func photos(page: Int, perPage: Int) async throws -> PhotoPage {
         guard page > 0 else {
             throw FixturePhotosRepositoryError.invalidPage(page)
         }
@@ -39,14 +39,22 @@ nonisolated struct FixturePhotosRepository: PhotosRepository, PhotoDetailReposit
 
         let photos: [PhotoDTO] = try loader.load(named: Constants.todayPhotos)
         let domainPhotos = photos.map(\.domainModel)
-
         let startIndex = (page - 1) * perPage
-        guard startIndex < domainPhotos.count else {
-            return []
+        let pagePhotos: [Photo]
+
+        if startIndex < domainPhotos.count {
+            let endIndex = min(startIndex + perPage, domainPhotos.count)
+            pagePhotos = Array(domainPhotos[startIndex..<endIndex])
+        } else {
+            pagePhotos = []
         }
 
-        let endIndex = min(startIndex + perPage, domainPhotos.count)
-        return Array(domainPhotos[startIndex..<endIndex])
+        return PhotoPage(
+            photos: pagePhotos,
+            page: page,
+            perPage: perPage,
+            total: domainPhotos.count
+        )
     }
 
     func sponsoredPhotos(count: Int) async throws -> [Photo] {
