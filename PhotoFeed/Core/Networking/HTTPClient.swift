@@ -9,8 +9,11 @@ import Foundation
 
 nonisolated struct HTTPClient: Sendable {
 
+    private enum HeaderKeys {
+        static let retryAfter = "Retry-After"
+    }
+
     private enum Constants {
-        static let retryAfterHeader = "Retry-After"
         static let localeIdentifier = "en_US_POSIX"
         static let dateFormats: [String] = [
             "EEE',' dd MMM yyyy HH':'mm':'ss zzz",
@@ -18,8 +21,6 @@ nonisolated struct HTTPClient: Sendable {
             "EEE MMM d HH':'mm':'ss yyyy"
         ]
     }
-
-    typealias HTTPResponse = Decodable & Sendable
 
     private let baseURL: URL
     private let session: URLSession
@@ -30,11 +31,25 @@ nonisolated struct HTTPClient: Sendable {
     }
 
     func send<Response: HTTPResponse>(_ request: HTTPRequest) async throws -> Response {
-        let data = try await data(for: request)
-        return try JSONDecoder().decode(Response.self, from: data)
+        let response = try await response(for: request)
+        return try JSONDecoder().decode(Response.self, from: response.data)
+    }
+
+    func sendWithMetadata<Response: HTTPResponse>(_ request: HTTPRequest) async throws -> HTTPResponseDecoded<Response> {
+        let response = try await response(for: request)
+        let value = try JSONDecoder().decode(Response.self, from: response.data)
+
+        let headers = normalizedHeaders(from: response.httpResponse)
+
+        return HTTPResponseDecoded(value: value, headers: headers)
     }
 
     func data(for request: HTTPRequest) async throws -> Data {
+        let response = try await response(for: request)
+        return response.data
+    }
+
+    private func response(for request: HTTPRequest) async throws -> (data: Data, httpResponse: HTTPURLResponse) {
         let urlRequest = try makeURLRequest(from: request)
         let (data, response) = try await session.data(for: urlRequest)
 
@@ -47,7 +62,7 @@ nonisolated struct HTTPClient: Sendable {
             throw HTTPClientError.unacceptableStatusCode(httpResponse.statusCode, data, retryAfter: retryAfter)
         }
 
-        return data
+        return (data, httpResponse)
     }
 
     private func makeURLRequest(from request: HTTPRequest) throws -> URLRequest {
@@ -75,8 +90,18 @@ nonisolated struct HTTPClient: Sendable {
         return urlRequest
     }
 
+    private func normalizedHeaders(from response: HTTPURLResponse) -> [String: String] {
+        response.allHeaderFields.reduce(into: [:]) { headers, field in
+            guard let name = field.key as? String else {
+                return
+            }
+
+            headers[name.lowercased()] = String(describing: field.value)
+        }
+    }
+
     private func retryAfter(from response: HTTPURLResponse, receivedAt: Date) -> Date? {
-        guard let value = response.value(forHTTPHeaderField: Constants.retryAfterHeader)?.trimmingCharacters(in: .whitespacesAndNewlines),
+        guard let value = response.value(forHTTPHeaderField: HeaderKeys.retryAfter)?.trimmingCharacters(in: .whitespacesAndNewlines),
               !value.isEmpty else {
             return nil
         }

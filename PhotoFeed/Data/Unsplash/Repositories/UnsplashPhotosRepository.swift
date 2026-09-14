@@ -15,9 +15,9 @@ nonisolated struct UnsplashPhotosRepository: PhotosRepository, PhotoDetailReposi
         self.api = api
     }
 
-    func photos(page: Int, perPage: Int) async throws -> [Photo] {
-        let photos = try await api.photos(page: page, perPage: perPage)
-        return photos.map(\.domainModel)
+    func photos(page: Int, perPage: Int) async throws -> PhotoPage {
+        let photoPage = try await api.photosWithMetadata(page: page, perPage: perPage)
+        return photoPage.domainModel
     }
 
     func sponsoredPhotos(count: Int) async throws -> [Photo] {
