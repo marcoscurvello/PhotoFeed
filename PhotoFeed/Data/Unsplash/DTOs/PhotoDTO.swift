@@ -7,6 +7,13 @@
 
 import Foundation
 
+nonisolated struct PhotoPageDTO: Sendable {
+    let photos: [PhotoDTO]
+    let page: Int
+    let perPage: Int
+    let total: Int
+}
+
 nonisolated struct PhotoDTO: Decodable, Sendable {
     let id: String
     let width: Int

@@ -27,6 +27,17 @@ nonisolated extension PhotoDTO {
     }
 }
 
+nonisolated extension PhotoPageDTO {
+    var domainModel: PhotoPage {
+        PhotoPage(
+            photos: photos.map(\.domainModel),
+            page: page,
+            perPage: perPage,
+            total: total
+        )
+    }
+}
+
 nonisolated extension UserDTO {
     var domainModel: User {
         User(
