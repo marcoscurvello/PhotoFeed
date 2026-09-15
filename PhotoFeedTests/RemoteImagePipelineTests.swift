@@ -7,16 +7,17 @@
 
 import Foundation
 import Testing
+import UIKit
 @testable import PhotoFeed
 
 @Suite("Remote image pipeline", .serialized)
 nonisolated struct RemoteImagePipelineTests {
 
-    @Test("Concurrent callers receive the same image with one fetch", .timeLimit(.minutes(1)))
-    func concurrentCallersReceiveImageWithOneFetch() async throws {
+    @Test("Concurrent callers receive the same prepared image with one fetch", .timeLimit(.minutes(1)))
+    func concurrentCallersReceivePreparedImageWithOneFetch() async throws {
         let counter = RequestCounter()
         let responseGate = ResponseGate()
-        let expectedData = Data("image-data".utf8)
+        let imageData = testImageData
 
         RemoteImageURLProtocolStub.handler = { request in
             counter.increment()
@@ -25,7 +26,7 @@ nonisolated struct RemoteImagePipelineTests {
 
             return (
                 try makeHTTPResponse(for: request),
-                expectedData
+                imageData
             )
         }
 
@@ -36,31 +37,30 @@ nonisolated struct RemoteImagePipelineTests {
         let pipeline = makePipeline()
         let url = URL(string: "https://images.example.com/photo")!
 
-        async let first = pipeline.data(for: url)
+        async let first = pipeline.image(for: url)
         await responseGate.waitUntilStarted()
 
-        async let second = pipeline.data(for: url)
+        async let second = pipeline.image(for: url)
 
         await responseGate.release()
 
-        let (firstData, secondData) = try await (first, second)
+        let (firstImage, secondImage) = try await (first, second)
 
-        #expect(firstData == expectedData)
-        #expect(secondData == expectedData)
+        #expect(firstImage === secondImage)
         #expect(counter.count == 1)
     }
 
-    @Test("Completed request is served from the memory cache")
-    func servesCachedDataWithoutAnotherRequest() async throws {
+    @Test("Completed request reuses the prepared memory-cached image")
+    func reusesPreparedCachedImageWithoutAnotherRequest() async throws {
         let counter = RequestCounter()
-        let expectedData = Data("cached-image-data".utf8)
+        let imageData = testImageData
 
         RemoteImageURLProtocolStub.handler = { request in
             counter.increment()
 
             return (
                 try makeHTTPResponse(for: request),
-                expectedData
+                imageData
             )
         }
 
@@ -71,11 +71,10 @@ nonisolated struct RemoteImagePipelineTests {
         let pipeline = makePipeline()
         let url = URL(string: "https://images.example.com/photo")!
 
-        let firstData = try await pipeline.data(for: url)
-        let secondData = try await pipeline.data(for: url)
+        let firstImage = try await pipeline.image(for: url)
+        let secondImage = try await pipeline.image(for: url)
 
-        #expect(firstData == expectedData)
-        #expect(secondData == expectedData)
+        #expect(firstImage === secondImage)
         #expect(counter.count == 1)
     }
 
@@ -83,7 +82,7 @@ nonisolated struct RemoteImagePipelineTests {
     func callerCancellationPreservesSharedFetch() async throws {
         let counter = RequestCounter()
         let responseGate = ResponseGate()
-        let expectedData = Data("image-data".utf8)
+        let imageData = testImageData
 
         RemoteImageURLProtocolStub.handler = { request in
             counter.increment()
@@ -92,7 +91,7 @@ nonisolated struct RemoteImagePipelineTests {
 
             return (
                 try makeHTTPResponse(for: request),
-                expectedData
+                imageData
             )
         }
 
@@ -103,32 +102,31 @@ nonisolated struct RemoteImagePipelineTests {
         let pipeline = makePipeline()
         let url = URL(string: "https://images.example.com/photo")!
         let caller = Task {
-            try await pipeline.data(for: url)
+            try await pipeline.image(for: url)
         }
 
         await responseGate.waitUntilStarted()
         caller.cancel()
         await responseGate.release()
 
-        let completedData = try await caller.value
-        let cachedData = try await pipeline.data(for: url)
+        let completedImage = try await caller.value
+        let cachedImage = try await pipeline.image(for: url)
 
-        #expect(completedData == expectedData)
-        #expect(cachedData == expectedData)
+        #expect(completedImage === cachedImage)
         #expect(counter.count == 1)
     }
 
     @Test("Different URLs produce independent requests")
     func doesNotCoalesceDifferentURLs() async throws {
         let counter = RequestCounter()
-        let expectedData = Data("image-data".utf8)
+        let imageData = testImageData
 
         RemoteImageURLProtocolStub.handler = { request in
             counter.increment()
 
             return (
                 try makeHTTPResponse(for: request),
-                expectedData
+                imageData
             )
         }
 
@@ -140,20 +138,17 @@ nonisolated struct RemoteImagePipelineTests {
         let firstURL = URL(string: "https://images.example.com/photo-1")!
         let secondURL = URL(string: "https://images.example.com/photo-2")!
 
-        async let first = pipeline.data(for: firstURL)
-        async let second = pipeline.data(for: secondURL)
+        async let first = pipeline.image(for: firstURL)
+        async let second = pipeline.image(for: secondURL)
 
-        let (firstData, secondData) = try await (first, second)
-
-        #expect(firstData == expectedData)
-        #expect(secondData == expectedData)
+        _ = try await (first, second)
         #expect(counter.count == 2)
     }
 
-    @Test("Failed request is cleared and can be retried")
-    func retriesAfterFailure() async throws {
+    @Test("HTTP failure is cleared and can be retried")
+    func retriesAfterHTTPFailure() async throws {
         let counter = RequestCounter()
-        let expectedData = Data("recovered-image-data".utf8)
+        let imageData = testImageData
 
         RemoteImageURLProtocolStub.handler = { request in
             let requestNumber = counter.increment()
@@ -167,7 +162,7 @@ nonisolated struct RemoteImagePipelineTests {
 
             return (
                 try makeHTTPResponse(for: request),
-                expectedData
+                imageData
             )
         }
 
@@ -179,29 +174,35 @@ nonisolated struct RemoteImagePipelineTests {
         let url = URL(string: "https://images.example.com/photo")!
 
         do {
-            _ = try await pipeline.data(for: url)
+            _ = try await pipeline.image(for: url)
             Issue.record("Expected the first request to fail")
         } catch {
             // Expected
         }
 
-        let recoveredData = try await pipeline.data(for: url)
+        let recoveredImage = try await pipeline.image(for: url)
 
-        #expect(recoveredData == expectedData)
+        #expect(recoveredImage.size.width > 0)
         #expect(counter.count == 2)
     }
 
-    @Test("Removing all cached data forces the image to be requested again")
-    func removesAllCachedData() async throws {
+    @Test("Image decoding failure is cleared and can be retried")
+    func retriesAfterImageDecodingFailure() async throws {
         let counter = RequestCounter()
-        let expectedData = Data("image-data".utf8)
 
         RemoteImageURLProtocolStub.handler = { request in
-            counter.increment()
+            let requestNumber = counter.increment()
+
+            if requestNumber == 1 {
+                return (
+                    try makeHTTPResponse(for: request),
+                    Data("not-an-image".utf8)
+                )
+            }
 
             return (
                 try makeHTTPResponse(for: request),
-                expectedData
+                testImageData
             )
         }
 
@@ -212,14 +213,48 @@ nonisolated struct RemoteImagePipelineTests {
         let pipeline = makePipeline()
         let url = URL(string: "https://images.example.com/photo")!
 
-        _ = try await pipeline.data(for: url)
-        _ = try await pipeline.data(for: url)
+        do {
+            _ = try await pipeline.image(for: url)
+            Issue.record("Expected the first request to fail")
+        } catch {
+            // Expected
+        }
+
+        let recoveredImage = try await pipeline.image(for: url)
+
+        #expect(recoveredImage.size.width > 0)
+        #expect(counter.count == 2)
+    }
+
+    @Test("Removing all cached data forces the image to be requested again")
+    func removesAllCachedData() async throws {
+        let counter = RequestCounter()
+        let imageData = testImageData
+
+        RemoteImageURLProtocolStub.handler = { request in
+            counter.increment()
+
+            return (
+                try makeHTTPResponse(for: request),
+                imageData
+            )
+        }
+
+        defer {
+            RemoteImageURLProtocolStub.handler = nil
+        }
+
+        let pipeline = makePipeline()
+        let url = URL(string: "https://images.example.com/photo")!
+
+        _ = try await pipeline.image(for: url)
+        _ = try await pipeline.image(for: url)
 
         #expect(counter.count == 1)
 
         await pipeline.removeAllCachedData()
 
-        _ = try await pipeline.data(for: url)
+        _ = try await pipeline.image(for: url)
 
         #expect(counter.count == 2)
     }
@@ -227,14 +262,14 @@ nonisolated struct RemoteImagePipelineTests {
     @Test("Removing one cached URL does not evict another URL")
     func removesCachedDataForOneURL() async throws {
         let counter = RequestCounter()
-        let expectedData = Data("image-data".utf8)
+        let imageData = testImageData
 
         RemoteImageURLProtocolStub.handler = { request in
             counter.increment()
 
             return (
                 try makeHTTPResponse(for: request),
-                expectedData
+                imageData
             )
         }
 
@@ -246,12 +281,12 @@ nonisolated struct RemoteImagePipelineTests {
         let firstURL = URL(string: "https://images.example.com/photo-1")!
         let secondURL = URL(string: "https://images.example.com/photo-2")!
 
-        _ = try await pipeline.data(for: firstURL)
-        _ = try await pipeline.data(for: secondURL)
+        _ = try await pipeline.image(for: firstURL)
+        _ = try await pipeline.image(for: secondURL)
         await pipeline.removeCachedData(for: firstURL)
 
-        _ = try await pipeline.data(for: firstURL)
-        _ = try await pipeline.data(for: secondURL)
+        _ = try await pipeline.image(for: firstURL)
+        _ = try await pipeline.image(for: secondURL)
 
         #expect(counter.count == 3)
     }
@@ -265,6 +300,8 @@ nonisolated struct RemoteImagePipelineTests {
         return RemoteImagePipeline(session: session)
     }
 }
+
+private let testImageData = Data(base64Encoded: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScL5zwAAAABJRU5ErkJggg==")!
 
 // MARK: - Test support
 

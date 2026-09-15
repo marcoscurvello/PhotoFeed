@@ -9,6 +9,7 @@ import SwiftUI
 import UIKit
 
 struct RemoteImageView<Placeholder: View>: View {
+
     private enum Phase {
         case loading
         case success(Image)
@@ -18,7 +19,7 @@ struct RemoteImageView<Placeholder: View>: View {
     private let url: URL
     private let pipeline: RemoteImagePipeline
     private let contentMode: ContentMode
-    private let placeholder: () -> Placeholder
+    private let placeholder: Placeholder
 
     @State private var phase: Phase = .loading
 
@@ -26,12 +27,12 @@ struct RemoteImageView<Placeholder: View>: View {
         url: URL,
         pipeline: RemoteImagePipeline,
         contentMode: ContentMode = .fill,
-        @ViewBuilder placeholder: @escaping () -> Placeholder
+        @ViewBuilder placeholder: () -> Placeholder
     ) {
         self.url = url
         self.pipeline = pipeline
         self.contentMode = contentMode
-        self.placeholder = placeholder
+        self.placeholder = placeholder()
     }
 
     var body: some View {
@@ -45,7 +46,7 @@ struct RemoteImageView<Placeholder: View>: View {
     private var content: some View {
         switch phase {
         case .loading:
-            placeholder()
+            placeholder
 
         case .success(let image):
             image
@@ -65,15 +66,9 @@ struct RemoteImageView<Placeholder: View>: View {
         phase = .loading
 
         do {
-            let data = try await pipeline.data(for: url)
+            let image = try await pipeline.image(for: url)
 
             guard !Task.isCancelled else {
-                return
-            }
-
-            guard let image = UIImage(data: data) else {
-                await pipeline.removeCachedData(for: url)
-                phase = .failure
                 return
             }
 

@@ -6,24 +6,25 @@
 //
 
 import Foundation
+import UIKit
 
 actor RemoteImagePipeline {
 
     private let session: URLSession
-    private let cache: NSCache<NSURL, NSData>
-    private var inFlightRequests: [URL: Task<Data, Error>] = [:]
+    private let cache: NSCache<NSURL, UIImage>
+    private var inFlightRequests: [URL: Task<UIImage, Error>] = [:]
 
     init(session: URLSession = .shared, memoryCapacity: Int = 50 * 1024 * 1024) {
         self.session = session
 
-        let cache = NSCache<NSURL, NSData>()
+        let cache = NSCache<NSURL, UIImage>()
         cache.totalCostLimit = memoryCapacity
         self.cache = cache
     }
 
-    func data(for url: URL) async throws -> Data {
-        if let cachedData = cache.object(forKey: url as NSURL) {
-            return cachedData as Data
+    func image(for url: URL) async throws -> UIImage {
+        if let cachedImage = cache.object(forKey: url as NSURL) {
+            return cachedImage
         }
 
         if let existingRequest = inFlightRequests[url] {
@@ -38,16 +39,20 @@ actor RemoteImagePipeline {
                 throw URLError(.badServerResponse)
             }
 
-            return data
+            guard let image = await Self.prepareImage(from: data) else {
+                throw URLError(.cannotDecodeContentData)
+            }
+
+            return image
         }
 
         inFlightRequests[url] = task
 
         do {
-            let data = try await task.value
-            cache.setObject(data as NSData, forKey: url as NSURL, cost: data.count)
+            let image = try await task.value
+            cache.setObject(image, forKey: url as NSURL, cost: image.decodedBitmapCost)
             inFlightRequests[url] = nil
-            return data
+            return image
         } catch {
             inFlightRequests[url] = nil
             throw error
@@ -60,5 +65,26 @@ actor RemoteImagePipeline {
 
     func removeAllCachedData() {
         cache.removeAllObjects()
+    }
+
+    nonisolated private static func prepareImage(from data: Data) async -> UIImage? {
+        guard let image = UIImage(data: data) else {
+            return nil
+        }
+
+        return await image.byPreparingForDisplay()
+    }
+}
+
+private extension UIImage {
+
+    nonisolated var decodedBitmapCost: Int {
+        if let cgImage {
+            return cgImage.bytesPerRow * cgImage.height
+        }
+
+        let pixelWidth = size.width * scale
+        let pixelHeight = size.height * scale
+        return max(1, Int(pixelWidth * pixelHeight * 4))
     }
 }
