@@ -9,14 +9,11 @@ import SwiftUI
 
 struct TodayView: View {
 
-    @Environment(\.scenePhase) private var scenePhase
-
     let viewModel: TodayViewModel
     let imagePipeline: RemoteImagePipeline
     let onSelect: (Photo) -> Void
 
     @State private var bottomVisibleItemID: TodayFeedItem.ID?
-    @State private var hasAppeared = false
 
     var body: some View {
         ScrollView {
@@ -50,30 +47,14 @@ struct TodayView: View {
             viewModel.updateCurrentVisibleItem(bottomVisibleItemID)
             await viewModel.loadIfNeeded(bottomVisibleItemID: bottomVisibleItemID)
         }
-        .onAppear {
-            hasAppeared = true
-            updateSponsoredLoadingActivity()
-        }
-        .onDisappear {
-            hasAppeared = false
-            updateSponsoredLoadingActivity()
-        }
-        .onChange(of: scenePhase) {
-            updateSponsoredLoadingActivity()
-        }
+        .todaySponsoredLoadingActivity(
+            viewModel: viewModel,
+            bottomVisibleItemID: bottomVisibleItemID
+        )
     }
 
     private func updateBottomVisibleItem(_ id: TodayFeedItem.ID?) {
         bottomVisibleItemID = id
-    }
-
-    private func updateSponsoredLoadingActivity() {
-        let isActive = hasAppeared && scenePhase == .active
-        viewModel.setSponsoredLoadingActive(isActive)
-
-        if isActive {
-            viewModel.updateCurrentVisibleItem(bottomVisibleItemID)
-        }
     }
 
     private func bottomVisibleItemID(
