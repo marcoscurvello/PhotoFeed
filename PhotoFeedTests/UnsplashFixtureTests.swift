@@ -16,10 +16,11 @@ struct UnsplashFixtureTests {
     func decodesTodayPhotos() throws {
         let photos: [PhotoDTO] = try FixtureLoader().load(named: "today_photos")
 
-        #expect(!photos.isEmpty)
-        #expect(photos[0].id == "oTDuuLUhH20")
-        #expect(photos[0].user.name == "Microsoft Copilot")
-        #expect(photos[0].user.username == "microsoftcopilot")
+        #expect(photos.count == 60)
+        #expect(Set(photos.map(\.id)).count == photos.count)
+        #expect(photos[0].id == "-oFU4FKenNI")
+        #expect(photos[0].user.name == "Sandisk")
+        #expect(photos[0].user.username == "sandisk")
         #expect(photos[0].urls.regular.host == "images.unsplash.com")
     }
 
