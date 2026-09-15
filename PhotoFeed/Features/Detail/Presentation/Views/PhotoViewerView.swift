@@ -16,14 +16,12 @@ struct PhotoViewerView: View {
 
     let photos: [Photo]
     let imagePipeline: RemoteImagePipeline
+    let initialPhotoID: Photo.ID
 
     @Environment(\.dismiss) private var dismiss
-    @State private var selectedPhotoID: Photo.ID?
     @State private var dismissOffset: CGFloat = 0
     @State private var isZoomed = false
     @State private var isDismissing = false
-
-    let initialPhotoID: Photo.ID
 
     init(
         photos: [Photo],
@@ -33,7 +31,6 @@ struct PhotoViewerView: View {
         self.photos = photos
         self.imagePipeline = imagePipeline
         self.initialPhotoID = initialPhotoID
-        _selectedPhotoID = State(initialValue: initialPhotoID)
     }
 
     var body: some View {
@@ -41,29 +38,13 @@ struct PhotoViewerView: View {
             Color.black
                 .ignoresSafeArea()
 
-            ZStack {
-                ScrollView(.horizontal) {
-                    LazyHStack(spacing: 0) {
-                        ForEach(photos) { photo in
-                            ZoomablePhotoView(
-                                photo: photo,
-                                imagePipeline: imagePipeline,
-                                isSelected: selectedPhotoID == photo.id,
-                                isZoomed: $isZoomed
-                            )
-                            .containerRelativeFrame(.horizontal)
-                            .id(photo.id)
-                        }
-                    }
-                    .scrollTargetLayout()
-                }
-                .scrollIndicators(.hidden)
-                .scrollTargetBehavior(.paging)
-                .scrollPosition(id: $selectedPhotoID, anchor: .center)
-                .scrollDisabled(isZoomed || isDismissing)
-
-                controls
-            }
+            PhotoViewerPager(
+                photos: photos,
+                initialPhotoID: initialPhotoID,
+                imagePipeline: imagePipeline,
+                isZoomed: $isZoomed,
+                isDismissing: isDismissing
+            )
             .offset(y: dismissOffset)
         }
         .preferredColorScheme(.dark)
@@ -86,7 +67,7 @@ struct PhotoViewerView: View {
                 guard
                     translation.height > 0,
                     abs(translation.height) > abs(translation.width)
-                else {
+                        else {
                     return
                 }
 
@@ -99,8 +80,8 @@ struct PhotoViewerView: View {
                 }
 
                 let shouldDismiss =
-                    value.translation.height > Constants.dismissThreshold ||
-                    value.predictedEndTranslation.height > Constants.predictedDismissThreshold
+                value.translation.height > Constants.dismissThreshold ||
+                value.predictedEndTranslation.height > Constants.predictedDismissThreshold
 
                 if shouldDismiss {
                     dismiss()
@@ -114,54 +95,6 @@ struct PhotoViewerView: View {
             }
     }
 
-    private func resetDismissOffset() {
-        withAnimation(.snappy) {
-            dismissOffset = 0
-        }
-    }
-
-    private var controls: some View {
-        VStack {
-            HStack {
-                Button {
-                    dismiss()
-                } label: {
-                    Image(systemName: "xmark")
-                        .font(.body.weight(.semibold))
-                        .frame(width: 40, height: 40)
-                        .background(.black.opacity(0.45))
-                        .clipShape(Circle())
-                }
-                .accessibilityLabel("Close")
-
-                Spacer()
-
-                if let counter {
-                    Text(counter)
-                        .font(.subheadline.weight(.semibold))
-                        .padding(.horizontal, 12)
-                        .frame(height: 40)
-                        .background(.black.opacity(0.45))
-                        .clipShape(Capsule())
-                }
-            }
-
-            Spacer()
-        }
-        .foregroundStyle(.white)
-        .padding(.horizontal, 16)
-        .safeAreaPadding(.top, 8)
-    }
-
-    private var counter: String? {
-        guard let selectedPhotoID,
-              let index = photos.firstIndex(where: { $0.id == selectedPhotoID })
-        else {
-            return nil
-        }
-
-        return "\(index + 1) / \(photos.count)"
-    }
 }
 
 #Preview {
