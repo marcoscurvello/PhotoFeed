@@ -21,28 +21,13 @@ struct ContentView: View {
             ) { photo in
                 selectedPhoto = photo
             }
-            .navigationDestination(isPresented: isShowingDetail) {
-                if let selectedPhoto {
-                    DetailView(
-                        viewModel: dependencies.makeDetailViewModel(for: selectedPhoto),
-                        imagePipeline: dependencies.imagePipeline
-                    )
-                }
+            .navigationDestination(item: $selectedPhoto) { photo in
+                DetailView(
+                    viewModel: dependencies.makeDetailViewModel(for: photo),
+                    imagePipeline: dependencies.imagePipeline
+                )
             }
         }
-    }
-
-    private var isShowingDetail: Binding<Bool> {
-        Binding(
-            get: {
-                selectedPhoto != nil
-            },
-            set: { isPresented in
-                if !isPresented {
-                    selectedPhoto = nil
-                }
-            }
-        )
     }
 }
 
