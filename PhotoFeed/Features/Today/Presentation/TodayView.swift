@@ -11,6 +11,7 @@ struct TodayView: View {
 
     let viewModel: TodayViewModel
     let imagePipeline: RemoteImagePipeline
+    let transitionNamespace: Namespace.ID
     let onSelect: (Photo) -> Void
 
     @State private var bottomVisibleItemID: TodayFeedItem.ID?
@@ -22,6 +23,7 @@ struct TodayView: View {
                 TodayFeedSection(
                     viewModel: viewModel,
                     imagePipeline: imagePipeline,
+                    transitionNamespace: transitionNamespace,
                     onSelect: onSelect
                 )
 
@@ -72,9 +74,12 @@ struct TodayView: View {
 }
 
 #Preview {
+    @Previewable @Namespace var transitionNamespace
+
     TodayView(
         viewModel: TodayPreviewFixtures.makeViewModel(),
         imagePipeline: TodayPreviewFixtures.imagePipeline,
+        transitionNamespace: transitionNamespace,
         onSelect: { _ in }
     )
 }

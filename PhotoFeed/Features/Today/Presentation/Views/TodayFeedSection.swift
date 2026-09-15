@@ -11,6 +11,7 @@ struct TodayFeedSection: View {
 
     let viewModel: TodayViewModel
     let imagePipeline: RemoteImagePipeline
+    let transitionNamespace: Namespace.ID
     let onSelect: (Photo) -> Void
 
     var body: some View {
@@ -34,6 +35,7 @@ struct TodayFeedSection: View {
             TodayContent(
                 viewModel: viewModel,
                 imagePipeline: imagePipeline,
+                transitionNamespace: transitionNamespace,
                 onSelect: onSelect
             )
         }
@@ -43,12 +45,14 @@ struct TodayFeedSection: View {
 #Preview("Loaded feed") {
     @Previewable
     @State var viewModel = TodayPreviewFixtures.makeViewModel()
+    @Previewable @Namespace var transitionNamespace
 
     ScrollView {
         LazyVStack(spacing: 24) {
             TodayFeedSection(
                 viewModel: viewModel,
                 imagePipeline: TodayPreviewFixtures.imagePipeline,
+                transitionNamespace: transitionNamespace,
                 onSelect: { _ in }
             )
         }
@@ -60,12 +64,14 @@ struct TodayFeedSection: View {
 #Preview("Loading feed") {
     @Previewable
     @State var viewModel = TodayPreviewFixtures.makeViewModel(behavior: .loading)
+    @Previewable @Namespace var transitionNamespace
 
     ScrollView {
         LazyVStack(spacing: 24) {
             TodayFeedSection(
                 viewModel: viewModel,
                 imagePipeline: TodayPreviewFixtures.imagePipeline,
+                transitionNamespace: transitionNamespace,
                 onSelect: { _ in }
             )
         }
@@ -77,12 +83,14 @@ struct TodayFeedSection: View {
 #Preview("Failed feed") {
     @Previewable
     @State var viewModel = TodayPreviewFixtures.makeViewModel(behavior: .failure)
+    @Previewable @Namespace var transitionNamespace
 
     ScrollView {
         LazyVStack(spacing: 24) {
             TodayFeedSection(
                 viewModel: viewModel,
                 imagePipeline: TodayPreviewFixtures.imagePipeline,
+                transitionNamespace: transitionNamespace,
                 onSelect: { _ in }
             )
         }

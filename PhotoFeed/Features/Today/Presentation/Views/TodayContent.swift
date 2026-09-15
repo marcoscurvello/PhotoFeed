@@ -11,6 +11,7 @@ struct TodayContent: View {
 
     let viewModel: TodayViewModel
     let imagePipeline: RemoteImagePipeline
+    let transitionNamespace: Namespace.ID
     let onSelect: (Photo) -> Void
 
     var body: some View {
@@ -18,7 +19,8 @@ struct TodayContent: View {
             TodayPhotoRow(
                 item: item,
                 style: viewModel.photoStyle(for: item),
-                imagePipeline: imagePipeline
+                imagePipeline: imagePipeline,
+                transitionNamespace: transitionNamespace
             ) {
                 onSelect(item.photo)
             }
@@ -34,12 +36,14 @@ struct TodayContent: View {
 
 #Preview("Loaded content") {
     @Previewable @State var viewModel = TodayPreviewFixtures.makeViewModel()
+    @Previewable @Namespace var transitionNamespace
 
     ScrollView {
         LazyVStack(spacing: 24) {
             TodayContent(
                 viewModel: viewModel,
                 imagePipeline: TodayPreviewFixtures.imagePipeline,
+                transitionNamespace: transitionNamespace,
                 onSelect: { _ in }
             )
         }
