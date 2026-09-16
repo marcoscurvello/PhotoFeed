@@ -5,6 +5,7 @@
 //  Created by Marcos Curvello on 16/09/2026.
 //
 
+import Foundation
 import UIKit
 
 nonisolated final class ImageMemoryCache: @unchecked Sendable {
