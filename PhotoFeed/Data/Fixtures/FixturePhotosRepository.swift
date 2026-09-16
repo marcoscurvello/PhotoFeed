@@ -23,6 +23,7 @@ nonisolated struct FixturePhotosRepository: PhotosRepository, PhotoDetailReposit
     }
 
     private let loader: FixtureLoader
+    private let sponsoredPhotoSequence = FixtureSponsoredPhotoSequence()
 
     init(loader: FixtureLoader = FixtureLoader()) {
         self.loader = loader
@@ -59,7 +60,10 @@ nonisolated struct FixturePhotosRepository: PhotosRepository, PhotoDetailReposit
 
     func sponsoredPhotos(count: Int) async throws -> [Photo] {
         let photos: [PhotoDTO] = try loader.load(named: Constants.sponsoredPhotos)
-        return photos.prefix(count).map(\.domainModel)
+        return await sponsoredPhotoSequence.next(
+            from: photos.map(\.domainModel),
+            count: count
+        )
     }
 
     func userPhotos(username: String, page: Int, perPage: Int) async throws -> [Photo] {

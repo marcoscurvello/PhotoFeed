@@ -24,6 +24,28 @@ struct UnsplashFixtureTests {
         #expect(photos[0].urls.regular.host == "images.unsplash.com")
     }
 
+    @Test("Sponsored fixture photos are unique across requests")
+    func producesUniqueSponsoredPhotosAcrossRequests() async throws {
+        let repository = FixturePhotosRepository()
+
+        let firstBatch = try await repository.sponsoredPhotos(count: 3)
+        let secondBatch = try await repository.sponsoredPhotos(count: 3)
+        let allPhotos = firstBatch + secondBatch
+
+        #expect(allPhotos.count == 6)
+        #expect(Set(allPhotos.map(\.id)).count == allPhotos.count)
+        #expect(firstBatch.map(\.id.rawValue) == [
+            "fixture-sponsored-0-ScZ_EMuC_lY",
+            "fixture-sponsored-1-b1FrQVPyIhQ",
+            "fixture-sponsored-2-Xd8ctkMatn8"
+        ])
+        #expect(secondBatch.map(\.id.rawValue) == [
+            "fixture-sponsored-3-ScZ_EMuC_lY",
+            "fixture-sponsored-4-b1FrQVPyIhQ",
+            "fixture-sponsored-5-Xd8ctkMatn8"
+        ])
+    }
+
     @Test("Photo statistics fixture decodes")
     func decodesPhotoStatisticsFixture() throws {
         let statistics: PhotoStatisticsDTO = try FixtureLoader().load(named: "photo_statistics")
