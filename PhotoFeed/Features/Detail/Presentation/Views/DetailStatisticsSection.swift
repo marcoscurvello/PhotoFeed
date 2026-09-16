@@ -84,8 +84,26 @@ private struct DetailStatisticsFailure: View {
     }
 }
 
-#Preview {
+#Preview("Loaded statistics") {
     @Previewable @State var viewModel = DetailPreviewFixtures.makeViewModel()
+
+    DetailStatisticsSection(viewModel: viewModel)
+        .task { await viewModel.load() }
+}
+
+#Preview("Statistics loading") {
+    @Previewable @State var viewModel = DetailPreviewFixtures.makeViewModel(
+        statisticsBehavior: .loading
+    )
+
+    DetailStatisticsSection(viewModel: viewModel)
+        .task { await viewModel.load() }
+}
+
+#Preview("Statistics failure") {
+    @Previewable @State var viewModel = DetailPreviewFixtures.makeViewModel(
+        statisticsBehavior: .failure
+    )
 
     DetailStatisticsSection(viewModel: viewModel)
         .task { await viewModel.load() }

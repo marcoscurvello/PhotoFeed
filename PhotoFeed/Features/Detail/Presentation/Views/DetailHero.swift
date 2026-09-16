@@ -51,18 +51,17 @@ struct DetailHero: View {
 
     private var heroAspectRatio: CGFloat {
         switch presentation {
-        case .natural: photoAspectRatio
-        case .immersiveLandscape: 0.82
+            case .natural: photoAspectRatio
+            case .immersiveLandscape: 0.82
         }
     }
 
     private var heroContentMode: ContentMode {
         switch presentation {
-        case .natural: .fit
-        case .immersiveLandscape: .fill
+            case .natural: .fit
+            case .immersiveLandscape: .fill
         }
     }
-
 }
 
 #Preview {

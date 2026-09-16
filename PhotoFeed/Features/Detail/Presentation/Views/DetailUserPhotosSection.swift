@@ -90,8 +90,36 @@ private struct DetailUserPhotosFailure: View {
     }
 }
 
-#Preview {
+#Preview("Loaded user photos") {
     @Previewable @State var viewModel = DetailPreviewFixtures.makeViewModel()
+
+    DetailUserPhotosSection(
+        viewModel: viewModel,
+        mainPhotoID: viewModel.photo.id,
+        photographerName: viewModel.photo.user.name,
+        imagePipeline: TodayPreviewFixtures.imagePipeline
+    )
+    .task { await viewModel.load() }
+}
+
+#Preview("User photos loading") {
+    @Previewable @State var viewModel = DetailPreviewFixtures.makeViewModel(
+        userPhotosBehavior: .loading
+    )
+
+    DetailUserPhotosSection(
+        viewModel: viewModel,
+        mainPhotoID: viewModel.photo.id,
+        photographerName: viewModel.photo.user.name,
+        imagePipeline: TodayPreviewFixtures.imagePipeline
+    )
+    .task { await viewModel.load() }
+}
+
+#Preview("User photos failure") {
+    @Previewable @State var viewModel = DetailPreviewFixtures.makeViewModel(
+        userPhotosBehavior: .failure
+    )
 
     DetailUserPhotosSection(
         viewModel: viewModel,

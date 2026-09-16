@@ -32,7 +32,7 @@ struct TodayErrorView: View {
     }
 
 }
-#Preview("Loading error") {
+#Preview("Feed error") {
     TodayErrorView(
         message: "Check your connection and try loading the latest photos again.",
         onRetry: {}

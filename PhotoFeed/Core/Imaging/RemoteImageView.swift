@@ -5,6 +5,7 @@
 //  Created by Marcos Curvello on 08/09/2026.
 //
 
+import Foundation
 import SwiftUI
 import UIKit
 
@@ -104,17 +105,81 @@ struct RemoteImageView<Placeholder: View>: View {
     }
 }
 
-#Preview {
+#Preview("Remote image loading") {
+    RemoteImageView(
+        url: RemoteImagePreviewURLProtocol.loadingURL,
+        pipeline: RemoteImagePreviewURLProtocol.makePipeline()
+    ) {
+        RemoteImagePreviewPlaceholder()
+    }
+    .frame(width: 300, height: 400)
+    .clipped()
+}
+
+#Preview("Remote image failure") {
+    RemoteImageView(
+        url: RemoteImagePreviewURLProtocol.failureURL,
+        pipeline: RemoteImagePreviewURLProtocol.makePipeline()
+    ) {
+        RemoteImagePreviewPlaceholder()
+    }
+    .frame(width: 300, height: 400)
+    .clipped()
+}
+
+#Preview("Remote image network success") {
     RemoteImageView(
         url: URL(string: "https://images.unsplash.com/photo-1417325384643-aac51acc9e5d?w=800")!,
         pipeline: RemoteImagePipeline()
     ) {
+        RemoteImagePreviewPlaceholder()
+    }
+    .frame(width: 300, height: 400)
+    .clipped()
+}
+
+#if DEBUG
+private struct RemoteImagePreviewPlaceholder: View {
+    var body: some View {
         Rectangle()
             .fill(.quaternary)
             .overlay {
                 ProgressView()
             }
     }
-    .frame(width: 300, height: 400)
-    .clipped()
 }
+
+private final class RemoteImagePreviewURLProtocol: URLProtocol, @unchecked Sendable {
+    static let loadingURL = URL(string: "preview-image://fixture/loading")!
+    static let failureURL = URL(string: "preview-image://fixture/failure")!
+
+    static func makePipeline() -> RemoteImagePipeline {
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [RemoteImagePreviewURLProtocol.self]
+        return RemoteImagePipeline(session: URLSession(configuration: configuration))
+    }
+
+    override class func canInit(with request: URLRequest) -> Bool {
+        request.url?.scheme == "preview-image"
+    }
+
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest {
+        request
+    }
+
+    override func startLoading() {
+        switch request.url?.path {
+            case "/loading":
+                break
+
+            case "/failure":
+                client?.urlProtocol(self, didFailWithError: URLError(.cannotConnectToHost))
+
+            default:
+                client?.urlProtocol(self, didFailWithError: URLError(.badURL))
+        }
+    }
+
+    override func stopLoading() {}
+}
+#endif
