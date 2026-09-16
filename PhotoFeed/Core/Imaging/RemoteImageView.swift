@@ -17,21 +17,38 @@ struct RemoteImageView<Placeholder: View>: View {
         case failure(url: URL)
     }
 
+    private struct PlaceholderRequest: Hashable {
+        let url: URL
+        let blurHash: String?
+    }
+
+    private struct DecodedPlaceholder {
+        let blurHash: String
+        let image: Image
+    }
+
     private let url: URL
     private let pipeline: RemoteImagePipeline
+    private let blurHash: String?
+    private let placeholderAspectRatio: CGFloat?
     private let contentMode: ContentMode
     private let placeholder: Placeholder
 
     @State private var phase: Phase
+    @State private var decodedPlaceholder: DecodedPlaceholder?
 
     init(
         url: URL,
         pipeline: RemoteImagePipeline,
+        blurHash: String? = nil,
+        placeholderAspectRatio: CGFloat? = nil,
         contentMode: ContentMode = .fill,
         @ViewBuilder placeholder: () -> Placeholder
     ) {
         self.url = url
         self.pipeline = pipeline
+        self.blurHash = blurHash
+        self.placeholderAspectRatio = placeholderAspectRatio
         self.contentMode = contentMode
         self.placeholder = placeholder()
         _phase = State(
@@ -45,6 +62,9 @@ struct RemoteImageView<Placeholder: View>: View {
         content
             .task(id: url) {
                 await loadImage()
+            }
+            .task(id: PlaceholderRequest(url: url, blurHash: blurHash)) {
+                await loadPlaceholder()
             }
     }
 
@@ -64,8 +84,21 @@ struct RemoteImageView<Placeholder: View>: View {
                         .padding()
 
                 default:
-                    placeholder
+                    loadingContent
             }
+        }
+    }
+
+    @ViewBuilder
+    private var loadingContent: some View {
+        if let blurHash,
+           let decodedPlaceholder,
+           decodedPlaceholder.blurHash == blurHash {
+            placeholderImageContent(decodedPlaceholder.image)
+        } else if let blurHash, let cachedPlaceholder = pipeline.cachedPlaceholder(for: blurHash) {
+            placeholderImageContent(Image(uiImage: cachedPlaceholder))
+        } else {
+            placeholder
         }
     }
 
@@ -73,6 +106,12 @@ struct RemoteImageView<Placeholder: View>: View {
         image
             .resizable()
             .aspectRatio(contentMode: contentMode)
+    }
+
+    private func placeholderImageContent(_ image: Image) -> some View {
+        image
+            .resizable()
+            .aspectRatio(placeholderAspectRatio, contentMode: contentMode)
     }
 
     private func loadImage() async {
@@ -103,9 +142,24 @@ struct RemoteImageView<Placeholder: View>: View {
             phase = .failure(url: url)
         }
     }
+
+    private func loadPlaceholder() async {
+        guard let blurHash,
+              pipeline.cachedImage(for: url) == nil,
+              let image = await pipeline.placeholder(for: blurHash),
+              !Task.isCancelled,
+              pipeline.cachedImage(for: url) == nil else {
+            return
+        }
+
+        decodedPlaceholder = DecodedPlaceholder(
+            blurHash: blurHash,
+            image: Image(uiImage: image)
+        )
+    }
 }
 
-#Preview("Remote image loading") {
+#Preview("Loading") {
     RemoteImageView(
         url: RemoteImagePreviewURLProtocol.loadingURL,
         pipeline: RemoteImagePreviewURLProtocol.makePipeline()
@@ -116,7 +170,21 @@ struct RemoteImageView<Placeholder: View>: View {
     .clipped()
 }
 
-#Preview("Remote image failure") {
+#Preview("BlurHash loading") {
+    RemoteImageView(
+        url: RemoteImagePreviewURLProtocol.loadingURL,
+        pipeline: RemoteImagePreviewURLProtocol.makePipeline(),
+        blurHash: "LEHV6nWB2yk8pyo0adR*.7kCMdnj",
+        placeholderAspectRatio: 4 / 3,
+        contentMode: .fit
+    ) {
+        RemoteImagePreviewPlaceholder()
+    }
+    .frame(width: 300, height: 200)
+    .background(.quaternary)
+}
+
+#Preview("Failure") {
     RemoteImageView(
         url: RemoteImagePreviewURLProtocol.failureURL,
         pipeline: RemoteImagePreviewURLProtocol.makePipeline()
@@ -127,7 +195,7 @@ struct RemoteImageView<Placeholder: View>: View {
     .clipped()
 }
 
-#Preview("Remote image network success") {
+#Preview("Network success") {
     RemoteImageView(
         url: URL(string: "https://images.unsplash.com/photo-1417325384643-aac51acc9e5d?w=800")!,
         pipeline: RemoteImagePipeline()

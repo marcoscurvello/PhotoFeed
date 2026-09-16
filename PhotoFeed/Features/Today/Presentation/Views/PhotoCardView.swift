@@ -35,7 +35,12 @@ struct PhotoCardView: View {
                 .fill(.quaternary)
                 .aspectRatio(style.aspectRatio, contentMode: .fit)
                 .overlay {
-                    RemoteImageView(url: photo.imageURLs.regular, pipeline: imagePipeline) {
+                    RemoteImageView(
+                        url: photo.imageURLs.regular,
+                        pipeline: imagePipeline,
+                        blurHash: photo.blurHash,
+                        placeholderAspectRatio: photoAspectRatio
+                    ) {
                         ProgressView()
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                     }
@@ -86,6 +91,14 @@ struct PhotoCardView: View {
                 .lineLimit(1)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var photoAspectRatio: CGFloat {
+        guard photo.width > 0, photo.height > 0 else {
+            return style.aspectRatio
+        }
+
+        return CGFloat(photo.width) / CGFloat(photo.height)
     }
 
     private var sponsoredBadge: some View {

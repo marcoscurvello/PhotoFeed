@@ -31,6 +31,8 @@ struct ZoomablePhotoView: View {
             RemoteImageView(
                 url: photo.imageURLs.regular,
                 pipeline: imagePipeline,
+                blurHash: photo.blurHash,
+                placeholderAspectRatio: photoAspectRatio,
                 contentMode: .fit
             ) {
                 ProgressView()
@@ -86,6 +88,14 @@ struct ZoomablePhotoView: View {
                     isZoomed = true
                 }
             }
+    }
+
+    private var photoAspectRatio: CGFloat {
+        guard photo.width > 0, photo.height > 0 else {
+            return 1
+        }
+
+        return CGFloat(photo.width) / CGFloat(photo.height)
     }
 
     private func dragGesture(containerSize: CGSize) -> some Gesture {

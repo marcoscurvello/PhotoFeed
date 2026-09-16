@@ -26,6 +26,8 @@ struct DetailHero: View {
                 DetailHeroMedia(
                     imageURL: photo.imageURLs.regular,
                     imagePipeline: imagePipeline,
+                    blurHash: photo.blurHash,
+                    photoAspectRatio: photoAspectRatio,
                     contentMode: heroContentMode
                 )
             }

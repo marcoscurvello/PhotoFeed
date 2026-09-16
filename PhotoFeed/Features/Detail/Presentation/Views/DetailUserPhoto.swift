@@ -19,7 +19,12 @@ struct DetailUserPhoto: View {
                 .fill(.quaternary)
                 .frame(width: 160, height: 205)
                 .overlay {
-                    RemoteImageView(url: photo.imageURLs.small, pipeline: imagePipeline) {
+                    RemoteImageView(
+                        url: photo.imageURLs.small,
+                        pipeline: imagePipeline,
+                        blurHash: photo.blurHash,
+                        placeholderAspectRatio: photoAspectRatio
+                    ) {
                         ProgressView()
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                     }
@@ -45,6 +50,14 @@ struct DetailUserPhoto: View {
                 comment: "Accessibility label for a photographer's photo without a description. The placeholder is the photographer's name."
             )
         }
+    }
+
+    private var photoAspectRatio: CGFloat {
+        guard photo.width > 0, photo.height > 0 else {
+            return 160 / 205
+        }
+
+        return CGFloat(photo.width) / CGFloat(photo.height)
     }
 }
 
