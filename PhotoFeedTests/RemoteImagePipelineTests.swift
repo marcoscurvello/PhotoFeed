@@ -71,9 +71,13 @@ nonisolated struct RemoteImagePipelineTests {
         let pipeline = makePipeline()
         let url = URL(string: "https://images.example.com/photo")!
 
+        #expect(pipeline.cachedImage(for: url) == nil)
+
         let firstImage = try await pipeline.image(for: url)
+        let cachedImage = pipeline.cachedImage(for: url)
         let secondImage = try await pipeline.image(for: url)
 
+        #expect(cachedImage === firstImage)
         #expect(firstImage === secondImage)
         #expect(counter.count == 1)
     }
@@ -143,6 +147,90 @@ nonisolated struct RemoteImagePipelineTests {
 
         _ = try await (first, second)
         #expect(counter.count == 2)
+    }
+
+    @Test("Prefetch warms the memory cache", .timeLimit(.minutes(1)))
+    func prefetchWarmsMemoryCache() async throws {
+        let counter = RequestCounter()
+        let responseGate = ResponseGate()
+        let imageData = testImageData
+
+        RemoteImageURLProtocolStub.handler = { request in
+            counter.increment()
+            await responseGate.markStarted()
+            await responseGate.waitForRelease()
+            return (try makeHTTPResponse(for: request), imageData)
+        }
+
+        defer {
+            RemoteImageURLProtocolStub.handler = nil
+        }
+
+        let pipeline = makePipeline()
+        let url = URL(string: "https://images.example.com/photo")!
+
+        await pipeline.prefetch([url])
+        await responseGate.waitUntilStarted()
+        await responseGate.release()
+
+        let prefetchedImage = try await waitForCachedImage(in: pipeline, for: url)
+        let requestedImage = try await pipeline.image(for: url)
+
+        #expect(pipeline.cachedImage(for: url) === prefetchedImage)
+        #expect(requestedImage === prefetchedImage)
+        #expect(counter.count == 1)
+    }
+
+    @Test("Overlapping prefetch calls request each URL only once")
+    func overlappingPrefetchCallsRequestEachURLOnlyOnce() async throws {
+        let counter = RequestCounter()
+        let imageData = testImageData
+
+        RemoteImageURLProtocolStub.handler = { request in
+            counter.increment()
+            return (try makeHTTPResponse(for: request), imageData)
+        }
+
+        defer {
+            RemoteImageURLProtocolStub.handler = nil
+        }
+
+        let pipeline = makePipeline()
+        let firstURL = URL(string: "https://images.example.com/photo-1")!
+        let secondURL = URL(string: "https://images.example.com/photo-2")!
+        let thirdURL = URL(string: "https://images.example.com/photo-3")!
+
+        await pipeline.prefetch([firstURL, secondURL])
+        await pipeline.prefetch([secondURL, thirdURL])
+
+        _ = try await pipeline.image(for: firstURL)
+        _ = try await pipeline.image(for: secondURL)
+        _ = try await pipeline.image(for: thirdURL)
+
+        #expect(counter.count == 3)
+    }
+
+    @Test("Prefetch deduplicates URLs within a window")
+    func prefetchDeduplicatesURLsWithinAWindow() async throws {
+        let counter = RequestCounter()
+        let imageData = testImageData
+
+        RemoteImageURLProtocolStub.handler = { request in
+            counter.increment()
+            return (try makeHTTPResponse(for: request), imageData)
+        }
+
+        defer {
+            RemoteImageURLProtocolStub.handler = nil
+        }
+
+        let pipeline = makePipeline()
+        let url = URL(string: "https://images.example.com/photo")!
+
+        await pipeline.prefetch([url, url, url])
+        _ = try await pipeline.image(for: url)
+
+        #expect(counter.count == 1)
     }
 
     @Test("HTTP failure is cleared and can be retried")
@@ -251,8 +339,11 @@ nonisolated struct RemoteImagePipelineTests {
         _ = try await pipeline.image(for: url)
 
         #expect(counter.count == 1)
+        #expect(pipeline.cachedImage(for: url) != nil)
 
         await pipeline.removeAllCachedData()
+
+        #expect(pipeline.cachedImage(for: url) == nil)
 
         _ = try await pipeline.image(for: url)
 
@@ -285,10 +376,104 @@ nonisolated struct RemoteImagePipelineTests {
         _ = try await pipeline.image(for: secondURL)
         await pipeline.removeCachedData(for: firstURL)
 
+        #expect(pipeline.cachedImage(for: firstURL) == nil)
+        #expect(pipeline.cachedImage(for: secondURL) != nil)
+
         _ = try await pipeline.image(for: firstURL)
         _ = try await pipeline.image(for: secondURL)
 
         #expect(counter.count == 3)
+    }
+
+    @Test("Removing cached data permits the URL to be prefetched again")
+    func removingCachedDataPermitsReprefetch() async throws {
+        let counter = RequestCounter()
+        let imageData = testImageData
+
+        RemoteImageURLProtocolStub.handler = { request in
+            counter.increment()
+            return (try makeHTTPResponse(for: request), imageData)
+        }
+
+        defer {
+            RemoteImageURLProtocolStub.handler = nil
+        }
+
+        let pipeline = makePipeline()
+        let url = URL(string: "https://images.example.com/photo")!
+
+        await pipeline.prefetch([url])
+        _ = try await pipeline.image(for: url)
+        await pipeline.removeCachedData(for: url)
+
+        await pipeline.prefetch([url])
+        _ = try await pipeline.image(for: url)
+
+        #expect(counter.count == 2)
+    }
+
+    @Test("Removing one URL cancels its in-flight request before it can populate the cache", .timeLimit(.minutes(1)))
+    func removingOneURLCancelsItsInFlightRequest() async throws {
+        let counter = RequestCounter()
+        let responseGate = ResponseGate()
+        let imageData = testImageData
+
+        RemoteImageURLProtocolStub.handler = { request in
+            counter.increment()
+            await responseGate.markStarted()
+            await responseGate.waitForRelease()
+            return (try makeHTTPResponse(for: request), imageData)
+        }
+
+        defer {
+            RemoteImageURLProtocolStub.handler = nil
+        }
+
+        let pipeline = makePipeline()
+        let url = URL(string: "https://images.example.com/photo")!
+
+        await pipeline.prefetch([url])
+        await responseGate.waitUntilStarted()
+        await pipeline.removeCachedData(for: url)
+
+        #expect(pipeline.cachedImage(for: url) == nil)
+
+        let image = try await pipeline.image(for: url)
+
+        #expect(pipeline.cachedImage(for: url) === image)
+        #expect(counter.count == 2)
+    }
+
+    @Test("Removing all cached data cancels in-flight requests before they can populate the cache", .timeLimit(.minutes(1)))
+    func removingAllCachedDataCancelsInFlightRequests() async throws {
+        let counter = RequestCounter()
+        let responseGate = ResponseGate()
+        let imageData = testImageData
+
+        RemoteImageURLProtocolStub.handler = { request in
+            counter.increment()
+            await responseGate.markStarted()
+            await responseGate.waitForRelease()
+            return (try makeHTTPResponse(for: request), imageData)
+        }
+
+        defer {
+            RemoteImageURLProtocolStub.handler = nil
+        }
+
+        let pipeline = makePipeline()
+        let url = URL(string: "https://images.example.com/photo")!
+
+        await pipeline.prefetch([url])
+        await responseGate.waitUntilStarted()
+        await pipeline.removeAllCachedData()
+
+        #expect(pipeline.cachedImage(for: url) == nil)
+
+        let image = try await pipeline.image(for: url)
+
+        #expect(pipeline.cachedImage(for: url) === image)
+        #expect(counter.count == 2)
     }
 
     private func makePipeline() -> RemoteImagePipeline {
@@ -298,6 +483,21 @@ nonisolated struct RemoteImagePipelineTests {
         let session = URLSession(configuration: configuration)
 
         return RemoteImagePipeline(session: session)
+    }
+
+    private func waitForCachedImage(
+        in pipeline: RemoteImagePipeline,
+        for url: URL
+    ) async throws -> UIImage {
+        for _ in 0..<1_000 {
+            if let image = pipeline.cachedImage(for: url) {
+                return image
+            }
+
+            try await Task.sleep(for: .milliseconds(1))
+        }
+
+        throw RemoteImagePipelineTestError.cacheDidNotPopulate
     }
 }
 
@@ -318,6 +518,7 @@ private func makeHTTPResponse(for request: URLRequest, statusCode: Int = 200) th
 
 private enum RemoteImagePipelineTestError: Error {
     case invalidResponse
+    case cacheDidNotPopulate
 }
 
 private final class RequestCounter: @unchecked Sendable {
