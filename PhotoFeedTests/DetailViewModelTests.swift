@@ -24,12 +24,11 @@ struct DetailViewModelTests {
 
         await viewModel.load()
 
-        #expect(viewModel.userPhotos == fixture.userPhotos)
-        #expect(viewModel.statistics == fixture.statistics)
-        #expect(viewModel.userPhotosErrorMessage == nil)
-        #expect(viewModel.statisticsErrorMessage == nil)
-        #expect(viewModel.isLoadingUserPhotos == false)
-        #expect(viewModel.isLoadingStatistics == false)
+        #expect(
+            viewModel.userPhotosState
+                == .loaded(fixture.userPhotos.filter { $0.id != fixture.photo.id })
+        )
+        #expect(viewModel.statisticsState == .loaded(fixture.statistics))
     }
 
     @Test("User photos and statistics start concurrently")
@@ -61,8 +60,11 @@ struct DetailViewModelTests {
         await gate.open()
         await loadTask.value
 
-        #expect(viewModel.userPhotos == fixture.userPhotos)
-        #expect(viewModel.statistics == fixture.statistics)
+        #expect(
+            viewModel.userPhotosState
+                == .loaded(fixture.userPhotos.filter { $0.id != fixture.photo.id })
+        )
+        #expect(viewModel.statisticsState == .loaded(fixture.statistics))
     }
 
     @Test("Statistics failure does not prevent user photos from loading")
@@ -77,12 +79,11 @@ struct DetailViewModelTests {
 
         await viewModel.load()
 
-        #expect(viewModel.userPhotos == fixture.userPhotos)
-        #expect(viewModel.userPhotosErrorMessage == nil)
-        #expect(viewModel.statistics == nil)
-        #expect(viewModel.statisticsErrorMessage != nil)
-        #expect(viewModel.isLoadingUserPhotos == false)
-        #expect(viewModel.isLoadingStatistics == false)
+        #expect(
+            viewModel.userPhotosState
+                == .loaded(fixture.userPhotos.filter { $0.id != fixture.photo.id })
+        )
+        #expect(viewModel.statisticsState == .failed)
     }
 
     @Test("User photos failure does not prevent statistics from loading")
@@ -97,12 +98,8 @@ struct DetailViewModelTests {
 
         await viewModel.load()
 
-        #expect(viewModel.userPhotos.isEmpty)
-        #expect(viewModel.userPhotosErrorMessage != nil)
-        #expect(viewModel.statistics == fixture.statistics)
-        #expect(viewModel.statisticsErrorMessage == nil)
-        #expect(viewModel.isLoadingUserPhotos == false)
-        #expect(viewModel.isLoadingStatistics == false)
+        #expect(viewModel.userPhotosState == .failed)
+        #expect(viewModel.statisticsState == .loaded(fixture.statistics))
     }
 
     @Test("Retrying statistics does not reload user photos")
@@ -121,7 +118,7 @@ struct DetailViewModelTests {
 
         #expect(counts.userPhotos == 1)
         #expect(counts.statistics == 1)
-        #expect(viewModel.statistics == nil)
+        #expect(viewModel.statisticsState == .failed)
 
         await repository.setStatisticsResult(.success(fixture.statistics))
         await viewModel.retryStatistics()
@@ -130,8 +127,7 @@ struct DetailViewModelTests {
 
         #expect(counts.userPhotos == 1)
         #expect(counts.statistics == 2)
-        #expect(viewModel.statistics == fixture.statistics)
-        #expect(viewModel.statisticsErrorMessage == nil)
+        #expect(viewModel.statisticsState == .loaded(fixture.statistics))
     }
 
     @Test("Retrying user photos does not reload statistics")
@@ -150,7 +146,7 @@ struct DetailViewModelTests {
 
         #expect(counts.userPhotos == 1)
         #expect(counts.statistics == 1)
-        #expect(viewModel.userPhotos.isEmpty)
+        #expect(viewModel.userPhotosState == .failed)
 
         await repository.setUserPhotosResult(.success(fixture.userPhotos))
         await viewModel.retryUserPhotos()
@@ -159,8 +155,56 @@ struct DetailViewModelTests {
 
         #expect(counts.userPhotos == 2)
         #expect(counts.statistics == 1)
-        #expect(viewModel.userPhotos == fixture.userPhotos)
-        #expect(viewModel.userPhotosErrorMessage == nil)
+        #expect(
+            viewModel.userPhotosState
+                == .loaded(fixture.userPhotos.filter { $0.id != fixture.photo.id })
+        )
+    }
+
+    @Test("The selected photo is excluded before user photos are stored")
+    @MainActor
+    func filtersSelectedPhotoBeforeStoringUserPhotos() async throws {
+        let fixture = try await makeFixture()
+        let repository = TestPhotoDetailRepository(
+            userPhotosResult: .success([fixture.photo] + fixture.userPhotos),
+            statisticsResult: .success(fixture.statistics)
+        )
+        let viewModel = DetailViewModel(photo: fixture.photo, repository: repository)
+
+        await viewModel.load()
+
+        #expect(
+            viewModel.userPhotosState
+                == .loaded(fixture.userPhotos.filter { $0.id != fixture.photo.id })
+        )
+    }
+
+    @Test("Cancelled resources return to idle and retry independently")
+    @MainActor
+    func retriesOnlyTheResourceCancelledByTheSystem() async throws {
+        let fixture = try await makeFixture()
+        let repository = CancellationThenSuccessDetailRepository(
+            userPhotos: fixture.userPhotos,
+            statistics: fixture.statistics
+        )
+        let viewModel = DetailViewModel(photo: fixture.photo, repository: repository)
+
+        await viewModel.load()
+
+        #expect(viewModel.userPhotosState == .idle)
+        #expect(viewModel.statisticsState == .loaded(fixture.statistics))
+
+        await viewModel.load()
+
+        let counts = await repository.callCounts()
+
+        #expect(counts.userPhotos == 2)
+        #expect(counts.statistics == 1)
+        #expect(
+            viewModel.userPhotosState
+                == .loaded(fixture.userPhotos.filter { $0.id != fixture.photo.id })
+        )
+        #expect(viewModel.statisticsState == .loaded(fixture.statistics))
     }
 }
 
@@ -267,6 +311,39 @@ private actor TestPhotoDetailRepository: PhotoDetailRepository {
 
         bothRequestsStarted.continuation.yield(())
         bothRequestsStarted.continuation.finish()
+    }
+}
+
+private actor CancellationThenSuccessDetailRepository: PhotoDetailRepository {
+
+    private let userPhotosToReturn: [Photo]
+    private let statisticsToReturn: PhotoStatistics
+
+    private var userPhotosCallCount = 0
+    private var statisticsCallCount = 0
+
+    init(userPhotos: [Photo], statistics: PhotoStatistics) {
+        userPhotosToReturn = userPhotos
+        statisticsToReturn = statistics
+    }
+
+    func userPhotos(username: String, page: Int, perPage: Int) async throws -> [Photo] {
+        userPhotosCallCount += 1
+
+        if userPhotosCallCount == 1 {
+            throw URLError(.cancelled)
+        }
+
+        return userPhotosToReturn
+    }
+
+    func statistics(photoID: Photo.ID) async throws -> PhotoStatistics {
+        statisticsCallCount += 1
+        return statisticsToReturn
+    }
+
+    func callCounts() -> (userPhotos: Int, statistics: Int) {
+        (userPhotosCallCount, statisticsCallCount)
     }
 }
 

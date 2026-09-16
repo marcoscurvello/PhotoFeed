@@ -8,23 +8,30 @@
 import Foundation
 import Observation
 
+nonisolated enum DetailResourceState<Value: Equatable & Sendable>: Equatable, Sendable {
+    case idle
+    case loading
+    case loaded(Value)
+    case failed
+
+    var loadedValue: Value? {
+        guard case .loaded(let value) = self else {
+            return nil
+        }
+
+        return value
+    }
+}
+
 @MainActor
 @Observable
 final class DetailViewModel {
 
-    let photo: Photo
-
-    private(set) var userPhotos: [Photo] = []
-    private(set) var statistics: PhotoStatistics?
-
-    private(set) var isLoadingUserPhotos = false
-    private(set) var isLoadingStatistics = false
-
-    private(set) var userPhotosErrorMessage: String?
-    private(set) var statisticsErrorMessage: String?
-
+    private let photo: Photo
     private let repository: any PhotoDetailRepository
-    private var hasLoaded = false
+
+    private(set) var userPhotosState: DetailResourceState<[Photo]> = .idle
+    private(set) var statisticsState: DetailResourceState<PhotoStatistics> = .idle
 
     init(photo: Photo, repository: any PhotoDetailRepository) {
         self.photo = photo
@@ -32,14 +39,8 @@ final class DetailViewModel {
     }
 
     func load() async {
-        guard !hasLoaded else {
-            return
-        }
-
-        hasLoaded = true
-
-        async let userPhotos: Void = fetchUserPhotos()
-        async let statistics: Void = fetchStatistics()
+        async let userPhotos: Void = loadUserPhotosIfNeeded()
+        async let statistics: Void = loadStatisticsIfNeeded()
 
         _ = await (userPhotos, statistics)
     }
@@ -52,49 +53,75 @@ final class DetailViewModel {
         await fetchStatistics()
     }
 
-    private func fetchUserPhotos() async {
-        guard !isLoadingUserPhotos else {
+    private func loadUserPhotosIfNeeded() async {
+        guard case .idle = userPhotosState else {
             return
         }
 
-        isLoadingUserPhotos = true
-        userPhotosErrorMessage = nil
+        await fetchUserPhotos()
+    }
 
-        defer {
-            isLoadingUserPhotos = false
+    private func loadStatisticsIfNeeded() async {
+        guard case .idle = statisticsState else {
+            return
         }
 
+        await fetchStatistics()
+    }
+
+    private func fetchUserPhotos() async {
+        guard userPhotosState != .loading else {
+            return
+        }
+
+        userPhotosState = .loading
+
         do {
-            userPhotos = try await repository.userPhotos(
+            let userPhotos = try await repository.userPhotos(
                 username: photo.user.username,
                 page: 1,
                 perPage: 10
             )
-        } catch is CancellationError {
-            return
+
+            guard !Task.isCancelled else {
+                userPhotosState = .idle
+                return
+            }
+
+            userPhotosState = .loaded(userPhotos.filter { $0.id != photo.id })
         } catch {
-            userPhotosErrorMessage = error.localizedDescription
+            userPhotosState = state(for: error)
         }
     }
 
     private func fetchStatistics() async {
-        guard !isLoadingStatistics else {
+        guard statisticsState != .loading else {
             return
         }
 
-        isLoadingStatistics = true
-        statisticsErrorMessage = nil
-
-        defer {
-            isLoadingStatistics = false
-        }
+        statisticsState = .loading
 
         do {
-            statistics = try await repository.statistics(photoID: photo.id)
-        } catch is CancellationError {
-            return
+            let statistics = try await repository.statistics(photoID: photo.id)
+
+            guard !Task.isCancelled else {
+                statisticsState = .idle
+                return
+            }
+
+            statisticsState = .loaded(statistics)
         } catch {
-            statisticsErrorMessage = error.localizedDescription
+            statisticsState = state(for: error)
+        }
+    }
+
+    private func state<Value: Equatable & Sendable>(for error: Error) -> DetailResourceState<Value> {
+        switch HTTPRequestFailureClassification(error) {
+        case .cancelled:
+            .idle
+
+        case .potentiallyTransient, .nonTransient, .unknown:
+            .failed
         }
     }
 }

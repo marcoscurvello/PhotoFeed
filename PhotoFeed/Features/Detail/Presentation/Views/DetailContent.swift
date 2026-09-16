@@ -10,7 +10,6 @@ import SwiftUI
 struct DetailContent: View {
 
     let user: User
-    let mainPhotoID: Photo.ID
     let viewModel: DetailViewModel
     let imagePipeline: RemoteImagePipeline
 
@@ -20,7 +19,6 @@ struct DetailContent: View {
             DetailStatisticsSection(viewModel: viewModel)
             DetailUserPhotosSection(
                 viewModel: viewModel,
-                mainPhotoID: mainPhotoID,
                 photographerName: user.name,
                 imagePipeline: imagePipeline
             )
@@ -36,8 +34,7 @@ struct DetailContent: View {
 
     ScrollView {
         DetailContent(
-            user: viewModel.photo.user,
-            mainPhotoID: viewModel.photo.id,
+            user: PhotoPreviewFixtures.detailPhoto.user,
             viewModel: viewModel,
             imagePipeline: PhotoPreviewFixtures.imagePipeline
         )

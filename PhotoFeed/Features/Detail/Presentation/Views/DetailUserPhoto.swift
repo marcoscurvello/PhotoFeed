@@ -43,6 +43,14 @@ struct DetailUserPhoto: View {
         .accessibilityHint("Opens photo viewer")
     }
 
+    private var photoAspectRatio: CGFloat {
+        guard photo.width > 0, photo.height > 0 else {
+            return 160 / 205
+        }
+
+        return CGFloat(photo.width) / CGFloat(photo.height)
+    }
+
     private var accessibilityLabel: LocalizedStringResource {
         if let description = photo.description {
             LocalizedStringResource(
@@ -55,14 +63,6 @@ struct DetailUserPhoto: View {
                 comment: "Accessibility label for a photographer's photo without a description. The placeholder is the photographer's name."
             )
         }
-    }
-
-    private var photoAspectRatio: CGFloat {
-        guard photo.width > 0, photo.height > 0 else {
-            return 160 / 205
-        }
-
-        return CGFloat(photo.width) / CGFloat(photo.height)
     }
 }
 

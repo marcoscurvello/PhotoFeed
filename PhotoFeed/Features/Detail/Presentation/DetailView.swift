@@ -11,16 +11,18 @@ struct DetailView: View {
 
     @State private var viewModel: DetailViewModel
 
+    let photo: Photo
     let imagePipeline: RemoteImagePipeline
 
-    init(viewModel: DetailViewModel, imagePipeline: RemoteImagePipeline) {
+    init(photo: Photo, viewModel: DetailViewModel, imagePipeline: RemoteImagePipeline) {
         _viewModel = State(initialValue: viewModel)
+        self.photo = photo
         self.imagePipeline = imagePipeline
     }
 
     var body: some View {
         DetailScrollView(
-            photo: viewModel.photo,
+            photo: photo,
             viewModel: viewModel,
             imagePipeline: imagePipeline
         )
@@ -33,6 +35,7 @@ struct DetailView: View {
 #Preview {
     NavigationStack {
         DetailView(
+            photo: PhotoPreviewFixtures.detailPhoto,
             viewModel: DetailPreviewFixtures.makeViewModel(),
             imagePipeline: PhotoPreviewFixtures.imagePipeline
         )
