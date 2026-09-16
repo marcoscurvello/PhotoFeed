@@ -18,6 +18,7 @@ enum PhotoPreviewFixtures {
         width: 6063,
         height: 4042,
         colorHex: "#f3f3f3",
+        blurHash: "LVGlbcIUM{oz~q9FRjof~qIUIURj",
         description: "Modern building with hexagonal facade pattern",
         imageURLs: .init(
             full: URL(string: "https://images.unsplash.com/photo-1777913357532-a551d758ca5d?crop=entropy&cs=srgb&fm=jpg&ixid=M3wxMDU5MzU4fDB8MXxyYW5kb218fHx8fHx8fHwxNzg4ODg3MDY0fA&ixlib=rb-4.1.0&q=85")!,
@@ -42,6 +43,7 @@ enum PhotoPreviewFixtures {
             width: 2688,
             height: 4032,
             colorHex: "#0c7373",
+            blurHash: "LA1XT;kWTKX8p{kXbbbcTdbcnNn$",
             description: "A young woman with dark hair illuminated by blue light",
             imageURLs: .init(
                 full: URL(string: "https://images.unsplash.com/photo-1777927515662-a460bce161eb?crop=entropy&cs=srgb&fm=jpg&ixid=M3wxMDU5MzU4fDB8MXxyYW5kb218fHx8fHx8fHwxNzg4ODg3MDY0fA&ixlib=rb-4.1.0&q=85")!,
@@ -63,6 +65,7 @@ enum PhotoPreviewFixtures {
             width: 2880,
             height: 3840,
             colorHex: "#f3f3f3",
+            blurHash: "LEM@.UpKD%yYT1xvkDIA4nx^01?E",
             description: "Sunbath",
             imageURLs: .init(
                 full: URL(string: "https://images.unsplash.com/photo-1778244305115-4dd2bf7c8e86?crop=entropy&cs=srgb&fm=jpg&ixid=M3wxMDU5MzU4fDB8MXxyYW5kb218fHx8fHx8fHwxNzg4ODg3MDY0fA&ixlib=rb-4.1.0&q=85")!,
