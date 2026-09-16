@@ -35,8 +35,8 @@ struct DetailHeroMetadata: View {
 
 #Preview {
     DetailHeroMetadata(
-        description: TodayPreviewFixtures.photo.description,
-        photographerName: TodayPreviewFixtures.photo.user.name
+        description: PhotoPreviewFixtures.detailPhoto.description,
+        photographerName: PhotoPreviewFixtures.detailPhoto.user.name
     )
     .padding(.top, 220)
     .background(.black)

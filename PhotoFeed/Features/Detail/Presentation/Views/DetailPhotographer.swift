@@ -45,7 +45,7 @@ struct DetailPhotographer: View {
 
 #Preview {
     DetailPhotographer(
-        user: TodayPreviewFixtures.photo.user,
-        imagePipeline: TodayPreviewFixtures.imagePipeline
+        user: PhotoPreviewFixtures.detailPhoto.user,
+        imagePipeline: PhotoPreviewFixtures.imagePipeline
     )
 }

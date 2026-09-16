@@ -50,8 +50,8 @@ struct DetailUserPhoto: View {
 
 #Preview {
     DetailUserPhoto(
-        photo: TodayPreviewFixtures.photos[1],
-        imagePipeline: TodayPreviewFixtures.imagePipeline,
+        photo: PhotoPreviewFixtures.detailUserPhotos[1],
+        imagePipeline: PhotoPreviewFixtures.imagePipeline,
         onSelect: {}
     )
     .padding()

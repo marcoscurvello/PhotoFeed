@@ -34,7 +34,7 @@ struct DetailView: View {
     NavigationStack {
         DetailView(
             viewModel: DetailPreviewFixtures.makeViewModel(),
-            imagePipeline: TodayPreviewFixtures.imagePipeline
+            imagePipeline: PhotoPreviewFixtures.imagePipeline
         )
     }
 }

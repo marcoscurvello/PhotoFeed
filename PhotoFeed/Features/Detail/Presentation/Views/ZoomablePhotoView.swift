@@ -161,8 +161,8 @@ struct ZoomablePhotoView: View {
     @Previewable @State var isZoomed = false
 
     ZoomablePhotoView(
-        photo: TodayPreviewFixtures.photo,
-        imagePipeline: TodayPreviewFixtures.imagePipeline,
+        photo: PhotoPreviewFixtures.detailPhoto,
+        imagePipeline: PhotoPreviewFixtures.imagePipeline,
         isSelected: true,
         isZoomed: $isZoomed
     )

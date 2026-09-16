@@ -51,9 +51,9 @@ struct TodayPhotoRow: View {
 
     ScrollView {
         TodayPhotoRow(
-            item: .organic(TodayPreviewFixtures.photo),
+            item: .organic(PhotoPreviewFixtures.photo),
             style: .card,
-            imagePipeline: TodayPreviewFixtures.imagePipeline,
+            imagePipeline: PhotoPreviewFixtures.imagePipeline,
             transitionNamespace: transitionNamespace,
             action: {}
         )
@@ -65,9 +65,9 @@ struct TodayPhotoRow: View {
 
     ScrollView {
         TodayPhotoRow(
-            item: .organic(TodayPreviewFixtures.photo),
+            item: .organic(PhotoPreviewFixtures.photo),
             style: .fullBleed,
-            imagePipeline: TodayPreviewFixtures.imagePipeline,
+            imagePipeline: PhotoPreviewFixtures.imagePipeline,
             transitionNamespace: transitionNamespace,
             action: {}
         )

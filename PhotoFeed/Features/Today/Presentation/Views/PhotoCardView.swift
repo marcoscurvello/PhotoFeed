@@ -129,8 +129,8 @@ struct PhotoCardView: View {
 
 #Preview("Card") {
     PhotoCardView(
-        photo: TodayPreviewFixtures.photo,
-        imagePipeline: TodayPreviewFixtures.imagePipeline,
+        photo: PhotoPreviewFixtures.photo,
+        imagePipeline: PhotoPreviewFixtures.imagePipeline,
         style: .card,
         action: {}
     )
@@ -139,8 +139,8 @@ struct PhotoCardView: View {
 
 #Preview("Full Bleed") {
     PhotoCardView(
-        photo: TodayPreviewFixtures.photo,
-        imagePipeline: TodayPreviewFixtures.imagePipeline,
+        photo: PhotoPreviewFixtures.photo,
+        imagePipeline: PhotoPreviewFixtures.imagePipeline,
         style: .fullBleed,
         action: {}
     )
@@ -148,8 +148,8 @@ struct PhotoCardView: View {
 
 #Preview("Sponsored") {
     PhotoCardView(
-        photo: TodayPreviewFixtures.photos[1],
-        imagePipeline: TodayPreviewFixtures.imagePipeline,
+        photo: PhotoPreviewFixtures.sponsoredPhotos[0],
+        imagePipeline: PhotoPreviewFixtures.imagePipeline,
         style: .card,
         isSponsored: true,
         action: {}

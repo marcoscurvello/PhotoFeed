@@ -99,8 +99,8 @@ struct PhotoViewerView: View {
 
 #Preview {
     PhotoViewerView(
-        photos: TodayPreviewFixtures.photos,
-        initialPhotoID: TodayPreviewFixtures.photo.id,
-        imagePipeline: TodayPreviewFixtures.imagePipeline
+        photos: PhotoPreviewFixtures.detailUserPhotos,
+        initialPhotoID: PhotoPreviewFixtures.detailPhoto.id,
+        imagePipeline: PhotoPreviewFixtures.imagePipeline
     )
 }
