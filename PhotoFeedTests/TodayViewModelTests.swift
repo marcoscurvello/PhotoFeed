@@ -16,25 +16,26 @@ struct TodayViewModelTests {
     @Test("Loads unique organic pages, preserves styles, and stops after a partial page")
     @MainActor
     func loadsOrganicPagesAndStopsAfterPartialPage() async {
-        let pageOne = (1...20).map { makePhoto(id: "p\($0)") }
+        let pageOne = (1...10).map { makePhoto(id: "p\($0)") }
         let pageTwo = [
-            makePhoto(id: "p20"),
-            makePhoto(id: "p21"),
-            makePhoto(id: "p22")
+            makePhoto(id: "p10"),
+            makePhoto(id: "p11"),
+            makePhoto(id: "p12")
         ]
 
         let repository = ControlledTodayRepository(pages: [pageOne, pageTwo])
         let viewModel = TodayViewModel(repository: repository)
 
         await viewModel.loadIfNeeded(bottomVisibleItemID: nil)
-        await viewModel.loadIfNeeded(bottomVisibleItemID: .organic(pageOne[19].id))
+        await viewModel.loadIfNeeded(bottomVisibleItemID: .organic(pageOne[9].id))
         await viewModel.loadIfNeeded(bottomVisibleItemID: .organic(pageTwo[2].id))
 
         let organicItems = viewModel.items.filter { !$0.isSponsored }
 
-        #expect(organicItems.map(\.photo.id.rawValue) == (1...22).map { "p\($0)" })
+        #expect(organicItems.map(\.photo.id.rawValue) == (1...12).map { "p\($0)" })
 
         #expect(await repository.organicRequests == [1, 2])
+        #expect(await repository.organicPageSizes == [10, 10])
         #expect(viewModel.state == .ready)
 
         for (index, item) in organicItems.enumerated() {
@@ -45,8 +46,8 @@ struct TodayViewModelTests {
     @Test("Initial loading does not advance pagination after the feed is populated")
     @MainActor
     func initialLoadingIsIdempotent() async {
-        let pageOne = (1...20).map { makePhoto(id: "p\($0)") }
-        let pageTwo = (21...40).map { makePhoto(id: "p\($0)") }
+        let pageOne = (1...10).map { makePhoto(id: "p\($0)") }
+        let pageTwo = (11...20).map { makePhoto(id: "p\($0)") }
         let repository = ControlledTodayRepository(pages: [pageOne, pageTwo])
         let viewModel = TodayViewModel(repository: repository)
 
@@ -59,8 +60,8 @@ struct TodayViewModelTests {
     @Test("Only the last feed item triggers the next page")
     @MainActor
     func loadsNextPageAtFeedBoundary() async {
-        let pageOne = (1...20).map { makePhoto(id: "p\($0)") }
-        let pageTwo = (21...40).map { makePhoto(id: "p\($0)") }
+        let pageOne = (1...10).map { makePhoto(id: "p\($0)") }
+        let pageTwo = (11...20).map { makePhoto(id: "p\($0)") }
         let repository = ControlledTodayRepository(pages: [pageOne, pageTwo])
         let viewModel = TodayViewModel(repository: repository)
 
@@ -69,7 +70,7 @@ struct TodayViewModelTests {
 
         #expect(await repository.organicRequests == [1])
 
-        await viewModel.loadIfNeeded(bottomVisibleItemID: .organic(pageOne[19].id))
+        await viewModel.loadIfNeeded(bottomVisibleItemID: .organic(pageOne[9].id))
 
         #expect(await repository.organicRequests == [1, 2])
     }
@@ -104,8 +105,8 @@ struct TodayViewModelTests {
     @Test("Organic pagination continues while sponsored loading is blocked")
     @MainActor
     func sponsoredLoadingDoesNotBlockOrganicPagination() async {
-        let pageOne = (1...20).map { makePhoto(id: "p\($0)") }
-        let pageTwo = (21...40).map { makePhoto(id: "p\($0)") }
+        let pageOne = (1...10).map { makePhoto(id: "p\($0)") }
+        let pageTwo = (11...20).map { makePhoto(id: "p\($0)") }
 
         let repository = ControlledTodayRepository(pages: [pageOne, pageTwo])
         let viewModel = TodayViewModel(
@@ -123,10 +124,10 @@ struct TodayViewModelTests {
         await repository.waitForSponsoredRequest(1)
 
         await viewModel.loadIfNeeded(bottomVisibleItemID: nil)
-        await viewModel.loadIfNeeded(bottomVisibleItemID: .organic(pageOne[19].id))
+        await viewModel.loadIfNeeded(bottomVisibleItemID: .organic(pageOne[9].id))
 
         #expect(viewModel.state == .ready)
-        #expect(viewModel.items.count == 40)
+        #expect(viewModel.items.count == 20)
         #expect(viewModel.items.allSatisfy { !$0.isSponsored })
         #expect(await repository.organicRequests == [1, 2])
         #expect(await repository.sponsoredRequestCount == 1)
@@ -158,7 +159,10 @@ struct TodayViewModelTests {
         viewModel.setSponsoredLoadingActive(true)
         await repository.waitForSponsoredRequest(1)
 
-        viewModel.updateCurrentVisibleItem(.organic(organicPhotos[1].id))
+        viewModel.updateCurrentVisibleItem(
+            .organic(organicPhotos[1].id),
+            isImmediateInsertionOffscreenSafe: true
+        )
 
         await repository.finishSponsored([
             makePhoto(id: "sp1")
@@ -184,6 +188,95 @@ struct TodayViewModelTests {
                 .allSatisfy {
                     !isFullBleed(viewModel.photoStyle(for: $0))
                 }
+        )
+
+        viewModel.setSponsoredLoadingActive(false)
+    }
+
+    @Test("Sponsored content inserts after the visible boundary becomes offscreen-safe")
+    @MainActor
+    func waitsForAnOffscreenSafeInsertionBoundary() async throws {
+        let organicPhotos = (1...10).map { makePhoto(id: "p\($0)") }
+        let repository = ControlledTodayRepository(pages: [organicPhotos])
+        let viewModel = TodayViewModel(
+            repository: repository,
+            sponsoredConfiguration: .init(
+                targetCoverage: 1,
+                lowWatermark: 0,
+                requestBatchSize: 1,
+                maximumRequestsPerEpisode: 1
+            )
+        )
+
+        await viewModel.loadIfNeeded(bottomVisibleItemID: nil)
+
+        viewModel.setSponsoredLoadingActive(true)
+        await repository.waitForSponsoredRequest(1)
+
+        viewModel.updateCurrentVisibleItem(
+            .organic(organicPhotos[1].id),
+            isImmediateInsertionOffscreenSafe: false
+        )
+
+        await repository.finishSponsored([makePhoto(id: "sp1")])
+
+        viewModel.updateCurrentVisibleItem(
+            .organic(organicPhotos[1].id),
+            isImmediateInsertionOffscreenSafe: true
+        )
+
+        try await waitFor {
+            viewModel.items.contains(where: \.isSponsored)
+        }
+
+        viewModel.setSponsoredLoadingActive(false)
+    }
+
+    @Test("Eligible sponsored candidates preserve organic order and sponsored sequence")
+    @MainActor
+    func batchesEligibleSponsoredInsertions() async throws {
+        let organicPhotos = (1...10).map { makePhoto(id: "p\($0)") }
+        let repository = ControlledTodayRepository(pages: [organicPhotos])
+        let viewModel = TodayViewModel(
+            repository: repository,
+            insertionPolicy: SponsoredInsertionPolicy(
+                organicItemsBetweenSponsored: 1
+            ),
+            sponsoredConfiguration: .init(
+                targetCoverage: 3,
+                lowWatermark: 0,
+                requestBatchSize: 3,
+                maximumRequestsPerEpisode: 1
+            )
+        )
+
+        await viewModel.loadIfNeeded(bottomVisibleItemID: nil)
+        let originalOrganicIDs = viewModel.items.map(\.id)
+
+        viewModel.setSponsoredLoadingActive(true)
+        await repository.waitForSponsoredRequest(1)
+
+        viewModel.updateCurrentVisibleItem(
+            .organic(organicPhotos[0].id),
+            isImmediateInsertionOffscreenSafe: true
+        )
+
+        await repository.finishSponsored([
+            makePhoto(id: "sp1"),
+            makePhoto(id: "sp2"),
+            makePhoto(id: "sp3")
+        ])
+
+        try await waitFor {
+            viewModel.items.filter(\.isSponsored).count == 3
+        }
+
+        #expect(viewModel.items.filter { !$0.isSponsored }.map(\.id) == originalOrganicIDs)
+        #expect(
+            viewModel.items
+                .filter(\.isSponsored)
+                .map(\.photo.id.rawValue)
+            == ["sp1", "sp2", "sp3"]
         )
 
         viewModel.setSponsoredLoadingActive(false)
@@ -219,8 +312,14 @@ struct TodayViewModelTests {
         await repository.waitForSponsoredRequest(1)
 
 
-        viewModel.updateCurrentVisibleItem(.organic(organicPhotos[3].id))
-        viewModel.updateCurrentVisibleItem(.organic(organicPhotos[0].id))
+        viewModel.updateCurrentVisibleItem(
+            .organic(organicPhotos[3].id),
+            isImmediateInsertionOffscreenSafe: true
+        )
+        viewModel.updateCurrentVisibleItem(
+            .organic(organicPhotos[0].id),
+            isImmediateInsertionOffscreenSafe: false
+        )
 
         await repository.finishSponsored([
             makePhoto(id: "sp1")
@@ -271,7 +370,10 @@ struct TodayViewModelTests {
             makePhoto(id: "sp1")
         ])
 
-        viewModel.updateCurrentVisibleItem(.organic(organicPhotos[0].id))
+        viewModel.updateCurrentVisibleItem(
+            .organic(organicPhotos[0].id),
+            isImmediateInsertionOffscreenSafe: true
+        )
 
         try await waitFor {
             viewModel.items.contains(where: \.isSponsored)
@@ -319,7 +421,10 @@ struct TodayViewModelTests {
         viewModel.setSponsoredLoadingActive(true)
         await repository.waitForSponsoredRequest(1)
 
-        viewModel.updateCurrentVisibleItem(.organic(organicPhotos[0].id))
+        viewModel.updateCurrentVisibleItem(
+            .organic(organicPhotos[0].id),
+            isImmediateInsertionOffscreenSafe: true
+        )
 
         await repository.finishSponsored([
             makePhoto(id: "sp1"),
@@ -333,7 +438,10 @@ struct TodayViewModelTests {
 
         #expect(await repository.sponsoredRequestCount == 1)
 
-        viewModel.updateCurrentVisibleItem(.organic(organicPhotos[1].id))
+        viewModel.updateCurrentVisibleItem(
+            .organic(organicPhotos[1].id),
+            isImmediateInsertionOffscreenSafe: true
+        )
 
         await repository.waitForSponsoredRequest(2)
 
@@ -402,12 +510,18 @@ struct TodayViewModelTests {
         viewModel.setSponsoredLoadingActive(true)
         await repository.waitForSponsoredRequest(1)
 
-        viewModel.updateCurrentVisibleItem(.organic(organicPhotos[0].id))
+        viewModel.updateCurrentVisibleItem(
+            .organic(organicPhotos[0].id),
+            isImmediateInsertionOffscreenSafe: true
+        )
 
         viewModel.setSponsoredLoadingActive(false)
         viewModel.setSponsoredLoadingActive(true)
 
-        viewModel.updateCurrentVisibleItem(.organic(organicPhotos[0].id))
+        viewModel.updateCurrentVisibleItem(
+            .organic(organicPhotos[0].id),
+            isImmediateInsertionOffscreenSafe: true
+        )
 
         await repository.finishSponsored([
             makePhoto(id: "stale")
@@ -484,6 +598,7 @@ private actor ControlledTodayRepository: PhotosRepository {
     private let sponsoredRequestEventContinuation: AsyncStream<Int>.Continuation
 
     private(set) var organicRequests: [Int] = []
+    private(set) var organicPageSizes: [Int] = []
     private(set) var sponsoredRequestCount = 0
 
     private var sponsoredWaiters: [CheckedContinuation<[Photo], Error>] = []
@@ -499,6 +614,7 @@ private actor ControlledTodayRepository: PhotosRepository {
 
     func photos(page: Int, perPage: Int) async throws -> PhotoPage {
         organicRequests.append(page)
+        organicPageSizes.append(perPage)
 
         let pagePhotos = pages.indices.contains(page - 1)
             ? Array(pages[page - 1].prefix(perPage))

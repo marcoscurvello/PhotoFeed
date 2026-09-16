@@ -13,7 +13,7 @@ import Observation
 final class TodayViewModel {
 
     private enum Constants {
-        static let defaultPageSize = 20
+        static let defaultPageSize = 10
     }
 
     enum State: Equatable {
@@ -30,14 +30,28 @@ final class TodayViewModel {
     private(set) var items: [TodayFeedItem] = []
     private(set) var state: State = .ready
 
+    @ObservationIgnored
     private var admittedPhotoIDs: Set<Photo.ID> = []
+
+    @ObservationIgnored
     private var photoStyles: [Photo.ID: PhotoCardStyle] = [:]
+
+    @ObservationIgnored
     private var pendingSponsoredPhotos: [Photo] = []
 
+    @ObservationIgnored
     private var currentVisibleItemID: TodayFeedItem.ID?
+
+    @ObservationIgnored
+    private var isImmediateInsertionOffscreenSafe = false
+
+    @ObservationIgnored
     private var furthestReachedItemID: TodayFeedItem.ID?
 
+    @ObservationIgnored
     private var isSponsoredLoadingActive = false
+
+    @ObservationIgnored
     private var nextPage: Int? = 1
 
     @ObservationIgnored
@@ -69,21 +83,26 @@ final class TodayViewModel {
             replenishSponsoredPhotosIfNeeded()
         } else {
             currentVisibleItemID = nil
+            isImmediateInsertionOffscreenSafe = false
             sponsoredTask?.cancel()
         }
     }
 
-    func updateCurrentVisibleItem(_ id: TodayFeedItem.ID?) {
+    func updateCurrentVisibleItem(_ id: TodayFeedItem.ID?, isImmediateInsertionOffscreenSafe: Bool) {
         guard isSponsoredLoadingActive else {
             currentVisibleItemID = nil
+            self.isImmediateInsertionOffscreenSafe = false
             return
         }
 
-        guard currentVisibleItemID != id else {
+        guard
+            currentVisibleItemID != id || self.isImmediateInsertionOffscreenSafe != isImmediateInsertionOffscreenSafe
+        else {
             return
         }
 
         currentVisibleItemID = id
+        self.isImmediateInsertionOffscreenSafe = isImmediateInsertionOffscreenSafe
 
         guard let id, let visibleIndex = items.firstIndex(where: { $0.id == id }) else {
             return
@@ -160,30 +179,41 @@ final class TodayViewModel {
                 state = .ready
 
             case .potentiallyTransient(_),
-                    .nonTransient,
-                    .unknown:
+                 .nonTransient,
+                 .unknown:
                 state = .failed(error.localizedDescription)
         }
     }
 
     private func appendOrganicPhotos(_ photos: [Photo]) {
+        var draftItems = items
+        var draftPhotoStyles = photoStyles
+        var draftAdmittedPhotoIDs = admittedPhotoIDs
+        var admittedIDs = Set<Photo.ID>()
+
         for photo in photos {
-            guard admittedPhotoIDs.insert(photo.id).inserted else {
+            guard draftAdmittedPhotoIDs.insert(photo.id).inserted else {
                 continue
             }
 
-            pendingSponsoredPhotos.removeAll {
-                $0.id == photo.id
-            }
+            admittedIDs.insert(photo.id)
+            let organicOrdinal = draftPhotoStyles.count
 
-            let organicOrdinal = photoStyles.count
-
-            photoStyles[photo.id] = organicOrdinal.isMultiple(of: 4)
+            draftPhotoStyles[photo.id] = organicOrdinal.isMultiple(of: 4)
             ? .fullBleed
             : .card
 
-            items.append(.organic(photo))
+            draftItems.append(.organic(photo))
         }
+
+        guard !admittedIDs.isEmpty else {
+            return
+        }
+
+        pendingSponsoredPhotos.removeAll { admittedIDs.contains($0.id) }
+        admittedPhotoIDs = draftAdmittedPhotoIDs
+        photoStyles = draftPhotoStyles
+        items = draftItems
     }
 
     private func replenishSponsoredPhotosIfNeeded() {
@@ -238,26 +268,69 @@ final class TodayViewModel {
     }
 
     private func insertPendingSponsoredPhotosIfPossible() {
-        guard isSponsoredLoadingActive, let insertionBoundary = furthestReachedIndex else {
+        guard isSponsoredLoadingActive, furthestReachedItemID != nil else {
             return
         }
 
-        while let photo = pendingSponsoredPhotos.first {
-            guard let insertionIndex = sponsoredInsertionPolicy.insertionIndex(in: items, currentVisibleIndex: insertionBoundary) else {
-                return
-            }
+        var draftItems = items
+        var draftAdmittedPhotoIDs = admittedPhotoIDs
+        var remainingPhotos = pendingSponsoredPhotos[...]
+        var didInsert = false
 
-            pendingSponsoredPhotos.removeFirst()
+        guard let currentVisibleIndex = currentVisibleIndex(in: draftItems),
+              let furthestReachedIndex = furthestReachedIndex(in: draftItems) else {
+            return
+        }
 
-            guard admittedPhotoIDs.insert(photo.id).inserted else {
+        while let photo = remainingPhotos.first {
+            guard !draftAdmittedPhotoIDs.contains(photo.id) else {
+                remainingPhotos.removeFirst()
                 continue
             }
 
-            items.insert(.sponsored(photo), at: insertionIndex)
+            guard
+                let insertionIndex = sponsoredInsertionPolicy.insertionIndex(
+                in: draftItems,
+                currentVisibleIndex: furthestReachedIndex
+            ) else {
+                break
+            }
+
+            let isImmediatelyAfterCurrentVisibleItem = insertionIndex == currentVisibleIndex + 1
+
+            guard !isImmediatelyAfterCurrentVisibleItem || isImmediateInsertionOffscreenSafe else {
+                break
+            }
+
+            remainingPhotos.removeFirst()
+            draftAdmittedPhotoIDs.insert(photo.id)
+            draftItems.insert(.sponsored(photo), at: insertionIndex)
+            didInsert = true
         }
+
+        pendingSponsoredPhotos = Array(remainingPhotos)
+
+        guard didInsert else {
+            return
+        }
+
+        admittedPhotoIDs = draftAdmittedPhotoIDs
+        items = draftItems
     }
 
     private var furthestReachedIndex: Int? {
+        furthestReachedIndex(in: items)
+    }
+
+    private func currentVisibleIndex(in items: [TodayFeedItem]) -> Int? {
+        guard let currentVisibleItemID else {
+            return nil
+        }
+
+        return items.firstIndex { $0.id == currentVisibleItemID }
+    }
+
+    private func furthestReachedIndex(in items: [TodayFeedItem]) -> Int? {
         guard let furthestReachedItemID else {
             return nil
         }
