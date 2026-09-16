@@ -27,6 +27,7 @@ actor FixtureSponsoredPhotoSequence {
                 width: template.width,
                 height: template.height,
                 colorHex: template.colorHex,
+                blurHash: template.blurHash,
                 description: template.description,
                 imageURLs: template.imageURLs,
                 user: template.user,

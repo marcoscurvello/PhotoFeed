@@ -19,7 +19,6 @@ struct DetailScrollView: View {
                 DetailHero(photo: photo, imagePipeline: imagePipeline)
                 DetailContent(
                     user: photo.user,
-                    mainPhotoID: photo.id,
                     viewModel: viewModel,
                     imagePipeline: imagePipeline
                 )
@@ -44,7 +43,7 @@ struct DetailScrollView: View {
 
     NavigationStack {
         DetailScrollView(
-            photo: viewModel.photo,
+            photo: PhotoPreviewFixtures.detailPhoto,
             viewModel: viewModel,
             imagePipeline: PhotoPreviewFixtures.imagePipeline
         )

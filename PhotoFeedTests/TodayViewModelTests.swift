@@ -395,6 +395,57 @@ struct TodayViewModelTests {
         viewModel.setSponsoredLoadingActive(false)
     }
 
+    @Test("Organic pages ignore photos already admitted as sponsored")
+    @MainActor
+    func ignoresOrganicPhotosDuplicatingSponsoredContent() async throws {
+        let organicPhotos = (1...10).map {
+            makePhoto(id: "p\($0)")
+        }
+        let sponsoredPhoto = makePhoto(id: "sp1")
+        let repository = ControlledTodayRepository(
+            pages: [organicPhotos, [sponsoredPhoto]]
+        )
+        let viewModel = TodayViewModel(
+            repository: repository,
+            sponsoredConfiguration: .init(
+                targetCoverage: 1,
+                lowWatermark: 0,
+                requestBatchSize: 1,
+                maximumRequestsPerEpisode: 1
+            )
+        )
+
+        await viewModel.loadIfNeeded(bottomVisibleItemID: nil)
+
+        viewModel.setSponsoredLoadingActive(true)
+        await repository.waitForSponsoredRequest(1)
+
+        viewModel.updateCurrentVisibleItem(
+            .organic(organicPhotos[0].id),
+            isImmediateInsertionOffscreenSafe: true
+        )
+
+        await repository.finishSponsored([sponsoredPhoto])
+
+        try await waitFor {
+            viewModel.items.contains {
+                $0.id == .sponsored(sponsoredPhoto.id)
+            }
+        }
+
+        await viewModel.loadIfNeeded(bottomVisibleItemID: .organic(organicPhotos[9].id))
+
+        let matchingItems = viewModel.items.filter {
+            $0.photo.id == sponsoredPhoto.id
+        }
+        let photoIDs = viewModel.items.map(\.photo.id)
+
+        #expect(matchingItems == [.sponsored(sponsoredPhoto)])
+        #expect(Set(photoIDs).count == photoIDs.count)
+
+        viewModel.setSponsoredLoadingActive(false)
+    }
+
     @Test("Sponsored buffer replenishes when it reaches the low watermark")
     @MainActor
     func replenishesSponsoredBufferAtLowWatermark() async throws {
@@ -731,6 +782,7 @@ private nonisolated func makePhoto(id: String) -> Photo {
         colorHex: nil,
         description: id,
         imageURLs: .init(
+            raw: imageURL,
             full: imageURL,
             regular: imageURL,
             small: imageURL,

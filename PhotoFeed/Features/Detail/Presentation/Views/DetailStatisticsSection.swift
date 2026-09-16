@@ -16,34 +16,40 @@ struct DetailStatisticsSection: View {
             Text("Statistics")
                 .font(.title2.bold())
 
-            if let statistics = viewModel.statistics {
-                HStack(spacing: 12) {
-                    DetailMetric(
-                        title: "Views",
-                        systemImage: "eye",
-                        metric: statistics.views
-                    )
-
-                    if let likes = statistics.likes {
+            switch viewModel.statisticsState {
+                case .loaded(let statistics):
+                    HStack(spacing: 12) {
                         DetailMetric(
-                            title: "Likes",
-                            systemImage: "heart",
-                            metric: likes
+                            title: "Views",
+                            systemImage: "eye",
+                            metric: statistics.views
+                        )
+
+                        if let likes = statistics.likes {
+                            DetailMetric(
+                                title: "Likes",
+                                systemImage: "heart",
+                                metric: likes
+                            )
+                        }
+
+                        DetailMetric(
+                            title: "Downloads",
+                            systemImage: "arrow.down",
+                            metric: statistics.downloads
                         )
                     }
 
-                    DetailMetric(
-                        title: "Downloads",
-                        systemImage: "arrow.down",
-                        metric: statistics.downloads
-                    )
-                }
-            } else if viewModel.isLoadingStatistics {
-                ProgressView()
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 28)
-            } else if viewModel.statisticsErrorMessage != nil {
-                DetailStatisticsFailure(viewModel: viewModel)
+                case .loading:
+                    ProgressView()
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 28)
+
+                case .failed:
+                    DetailStatisticsFailure(viewModel: viewModel)
+
+                case .idle:
+                    EmptyView()
             }
         }
         .padding(.horizontal, 20)

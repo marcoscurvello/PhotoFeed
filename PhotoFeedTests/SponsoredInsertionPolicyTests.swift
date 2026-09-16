@@ -187,7 +187,7 @@ private func makePhoto(_ id: String) -> Photo {
         height: 1600,
         colorHex: nil,
         description: nil,
-        imageURLs: .init(full: imageURL, regular: imageURL, small: imageURL, thumbnail: imageURL),
+        imageURLs: .init(raw: imageURL, full: imageURL, regular: imageURL, small: imageURL, thumbnail: imageURL),
         user: makeUser(id),
         webpageURL: webpageURL
     )

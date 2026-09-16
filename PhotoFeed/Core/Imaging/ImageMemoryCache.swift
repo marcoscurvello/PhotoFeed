@@ -35,7 +35,7 @@ nonisolated final class ImageMemoryCache: @unchecked Sendable {
     }
 }
 
-private extension UIImage {
+extension UIImage {
 
     nonisolated var decodedBitmapCost: Int {
         if let cgImage {

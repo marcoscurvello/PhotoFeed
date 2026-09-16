@@ -275,6 +275,7 @@ struct SponsoredCoordinatorTests {
             colorHex: nil,
             description: nil,
             imageURLs: .init(
+                raw: url,
                 full: url,
                 regular: url,
                 small: url,

@@ -5,8 +5,10 @@
 //  Created by Marcos Curvello on 08/09/2026.
 //
 
+import DequeModule
 import Foundation
 import Observation
+import OrderedCollections
 
 @MainActor
 @Observable
@@ -27,8 +29,13 @@ final class TodayViewModel {
     private let sponsoredInsertionPolicy: SponsoredInsertionPolicy
     private let sponsoredConfiguration: SponsoredCoordinatorConfiguration
 
-    private(set) var items: [TodayFeedItem] = []
     private(set) var state: State = .ready
+
+    private var feedItems: OrderedDictionary<TodayFeedItem.ID, TodayFeedItem> = [:]
+
+    var items: OrderedDictionary<TodayFeedItem.ID, TodayFeedItem>.Values {
+        feedItems.values
+    }
 
     @ObservationIgnored
     private var admittedPhotoIDs: Set<Photo.ID> = []
@@ -37,7 +44,7 @@ final class TodayViewModel {
     private var photoStyles: [Photo.ID: PhotoCardStyle] = [:]
 
     @ObservationIgnored
-    private var pendingSponsoredPhotos: [Photo] = []
+    private var pendingSponsoredPhotos: Deque<Photo> = []
 
     @ObservationIgnored
     private var currentVisibleItemID: TodayFeedItem.ID?
@@ -104,7 +111,7 @@ final class TodayViewModel {
         currentVisibleItemID = id
         self.isImmediateInsertionOffscreenSafe = isImmediateInsertionOffscreenSafe
 
-        guard let id, let visibleIndex = items.firstIndex(where: { $0.id == id }) else {
+        guard let id, let visibleIndex = itemIndex(for: id) else {
             return
         }
 
@@ -121,12 +128,12 @@ final class TodayViewModel {
             return
         }
 
-        if items.isEmpty {
+        if feedItems.isEmpty {
             guard nextPage == 1, bottomVisibleItemID == nil else {
                 return
             }
         } else {
-            guard bottomVisibleItemID == items.last?.id else {
+            guard bottomVisibleItemID == feedItems.keys.last else {
                 return
             }
         }
@@ -148,6 +155,19 @@ final class TodayViewModel {
         }
 
         return photoStyles[photo.id] ?? .card
+    }
+
+    func upcomingRegularImageURLs(after itemID: TodayFeedItem.ID?, limit: Int) -> [URL] {
+        guard let itemID, limit > 0,
+              let itemIndex = itemIndex(for: itemID)
+        else {
+            return []
+        }
+
+        return feedItems.values
+            .dropFirst(itemIndex + 1)
+            .prefix(limit)
+            .map(\.photo.imageURLs.regular)
     }
 
     private func load(page: Int) async {
@@ -186,7 +206,7 @@ final class TodayViewModel {
     }
 
     private func appendOrganicPhotos(_ photos: [Photo]) {
-        var draftItems = items
+        var draftItems = feedItems
         var draftPhotoStyles = photoStyles
         var draftAdmittedPhotoIDs = admittedPhotoIDs
         var admittedIDs = Set<Photo.ID>()
@@ -203,7 +223,8 @@ final class TodayViewModel {
             ? .fullBleed
             : .card
 
-            draftItems.append(.organic(photo))
+            let item = TodayFeedItem.organic(photo)
+            draftItems[item.id] = item
         }
 
         guard !admittedIDs.isEmpty else {
@@ -213,7 +234,7 @@ final class TodayViewModel {
         pendingSponsoredPhotos.removeAll { admittedIDs.contains($0.id) }
         admittedPhotoIDs = draftAdmittedPhotoIDs
         photoStyles = draftPhotoStyles
-        items = draftItems
+        feedItems = draftItems
     }
 
     private func replenishSponsoredPhotosIfNeeded() {
@@ -272,9 +293,9 @@ final class TodayViewModel {
             return
         }
 
-        var draftItems = items
+        var draftItems = feedItems
         var draftAdmittedPhotoIDs = admittedPhotoIDs
-        var remainingPhotos = pendingSponsoredPhotos[...]
+        var remainingPhotos = pendingSponsoredPhotos
         var didInsert = false
 
         guard let currentVisibleIndex = currentVisibleIndex(in: draftItems),
@@ -284,13 +305,13 @@ final class TodayViewModel {
 
         while let photo = remainingPhotos.first {
             guard !draftAdmittedPhotoIDs.contains(photo.id) else {
-                remainingPhotos.removeFirst()
+                _ = remainingPhotos.popFirst()
                 continue
             }
 
             guard
                 let insertionIndex = sponsoredInsertionPolicy.insertionIndex(
-                    in: draftItems,
+                    in: draftItems.values,
                     currentVisibleIndex: furthestReachedIndex
                 ),
                 sponsoredInsertionPolicy.isInsertionSafe(
@@ -302,39 +323,52 @@ final class TodayViewModel {
                 break
             }
 
-            remainingPhotos.removeFirst()
+            _ = remainingPhotos.popFirst()
             draftAdmittedPhotoIDs.insert(photo.id)
-            draftItems.insert(.sponsored(photo), at: insertionIndex)
+
+            let item = TodayFeedItem.sponsored(photo)
+            draftItems[item.id] = item
+
+            let appendedIndex = draftItems.count - 1
+            draftItems.moveSubrange(appendedIndex..<draftItems.count, to: insertionIndex)
             didInsert = true
         }
 
-        pendingSponsoredPhotos = Array(remainingPhotos)
+        pendingSponsoredPhotos = remainingPhotos
 
         guard didInsert else {
             return
         }
 
         admittedPhotoIDs = draftAdmittedPhotoIDs
-        items = draftItems
+        feedItems = draftItems
     }
 
     private var furthestReachedIndex: Int? {
-        furthestReachedIndex(in: items)
-    }
-
-    private func currentVisibleIndex(in items: [TodayFeedItem]) -> Int? {
-        guard let currentVisibleItemID else {
-            return nil
-        }
-
-        return items.firstIndex { $0.id == currentVisibleItemID }
-    }
-
-    private func furthestReachedIndex(in items: [TodayFeedItem]) -> Int? {
         guard let furthestReachedItemID else {
             return nil
         }
 
-        return items.firstIndex { $0.id == furthestReachedItemID }
+        return itemIndex(for: furthestReachedItemID)
+    }
+
+    private func itemIndex(for id: TodayFeedItem.ID) -> Int? {
+        feedItems.index(forKey: id)
+    }
+
+    private func currentVisibleIndex(in items: OrderedDictionary<TodayFeedItem.ID, TodayFeedItem>) -> Int? {
+        guard let currentVisibleItemID else {
+            return nil
+        }
+
+        return items.index(forKey: currentVisibleItemID)
+    }
+
+    private func furthestReachedIndex(in items: OrderedDictionary<TodayFeedItem.ID, TodayFeedItem>) -> Int? {
+        guard let furthestReachedItemID else {
+            return nil
+        }
+
+        return items.index(forKey: furthestReachedItemID)
     }
 }

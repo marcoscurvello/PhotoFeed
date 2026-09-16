@@ -18,8 +18,10 @@ enum PhotoPreviewFixtures {
         width: 6063,
         height: 4042,
         colorHex: "#f3f3f3",
+        blurHash: "LVGlbcIUM{oz~q9FRjof~qIUIURj",
         description: "Modern building with hexagonal facade pattern",
         imageURLs: .init(
+            raw: URL(string: "https://images.unsplash.com/photo-1777913357532-a551d758ca5d?ixid=M3wxMDU5MzU4fDB8MXxyYW5kb218fHx8fHx8fHwxNzg4ODg3MDY0fA&ixlib=rb-4.1.0")!,
             full: URL(string: "https://images.unsplash.com/photo-1777913357532-a551d758ca5d?crop=entropy&cs=srgb&fm=jpg&ixid=M3wxMDU5MzU4fDB8MXxyYW5kb218fHx8fHx8fHwxNzg4ODg3MDY0fA&ixlib=rb-4.1.0&q=85")!,
             regular: URL(string: "https://images.unsplash.com/photo-1777913357532-a551d758ca5d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3wxMDU5MzU4fDB8MXxyYW5kb218fHx8fHx8fHwxNzg4ODg3MDY0fA&ixlib=rb-4.1.0&q=80&w=1080")!,
             small: URL(string: "https://images.unsplash.com/photo-1777913357532-a551d758ca5d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3wxMDU5MzU4fDB8MXxyYW5kb218fHx8fHx8fHwxNzg4ODg3MDY0fA&ixlib=rb-4.1.0&q=80&w=400")!,
@@ -42,8 +44,10 @@ enum PhotoPreviewFixtures {
             width: 2688,
             height: 4032,
             colorHex: "#0c7373",
+            blurHash: "LA1XT;kWTKX8p{kXbbbcTdbcnNn$",
             description: "A young woman with dark hair illuminated by blue light",
             imageURLs: .init(
+                raw: URL(string: "https://images.unsplash.com/photo-1777927515662-a460bce161eb?ixid=M3wxMDU5MzU4fDB8MXxyYW5kb218fHx8fHx8fHwxNzg4ODg3MDY0fA&ixlib=rb-4.1.0")!,
                 full: URL(string: "https://images.unsplash.com/photo-1777927515662-a460bce161eb?crop=entropy&cs=srgb&fm=jpg&ixid=M3wxMDU5MzU4fDB8MXxyYW5kb218fHx8fHx8fHwxNzg4ODg3MDY0fA&ixlib=rb-4.1.0&q=85")!,
                 regular: URL(string: "https://images.unsplash.com/photo-1777927515662-a460bce161eb?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3wxMDU5MzU4fDB8MXxyYW5kb218fHx8fHx8fHwxNzg4ODg3MDY0fA&ixlib=rb-4.1.0&q=80&w=1080")!,
                 small: URL(string: "https://images.unsplash.com/photo-1777927515662-a460bce161eb?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3wxMDU5MzU4fDB8MXxyYW5kb218fHx8fHx8fHwxNzg4ODg3MDY0fA&ixlib=rb-4.1.0&q=80&w=400")!,
@@ -63,8 +67,10 @@ enum PhotoPreviewFixtures {
             width: 2880,
             height: 3840,
             colorHex: "#f3f3f3",
+            blurHash: "LEM@.UpKD%yYT1xvkDIA4nx^01?E",
             description: "Sunbath",
             imageURLs: .init(
+                raw: URL(string: "https://images.unsplash.com/photo-1778244305115-4dd2bf7c8e86?ixid=M3wxMDU5MzU4fDB8MXxyYW5kb218fHx8fHx8fHwxNzg4ODg3MDY0fA&ixlib=rb-4.1.0")!,
                 full: URL(string: "https://images.unsplash.com/photo-1778244305115-4dd2bf7c8e86?crop=entropy&cs=srgb&fm=jpg&ixid=M3wxMDU5MzU4fDB8MXxyYW5kb218fHx8fHx8fHwxNzg4ODg3MDY0fA&ixlib=rb-4.1.0&q=85")!,
                 regular: URL(string: "https://images.unsplash.com/photo-1778244305115-4dd2bf7c8e86?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3wxMDU5MzU4fDB8MXxyYW5kb218fHx8fHx8fHwxNzg4ODg3MDY0fA&ixlib=rb-4.1.0&q=80&w=1080")!,
                 small: URL(string: "https://images.unsplash.com/photo-1778244305115-4dd2bf7c8e86?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3wxMDU5MzU4fDB8MXxyYW5kb218fHx8fHx8fHwxNzg4ODg3MDY0fA&ixlib=rb-4.1.0&q=80&w=400")!,
@@ -92,6 +98,7 @@ enum PhotoPreviewFixtures {
             colorHex: "#260c0c",
             description: "Woman in a red and black jacket crouching at night",
             imageURLs: .init(
+                raw: URL(string: "https://images.unsplash.com/photo-1773170698495-5fc99eb39010")!,
                 full: URL(string: "https://images.unsplash.com/photo-1773170698495-5fc99eb39010?crop=entropy&cs=srgb&fm=jpg&q=85")!,
                 regular: URL(string: "https://images.unsplash.com/photo-1773170698495-5fc99eb39010?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080")!,
                 small: URL(string: "https://images.unsplash.com/photo-1773170698495-5fc99eb39010?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=400")!,
@@ -107,6 +114,7 @@ enum PhotoPreviewFixtures {
             colorHex: "#262626",
             description: "Woman standing on a street at night",
             imageURLs: .init(
+                raw: URL(string: "https://images.unsplash.com/photo-1773008752582-287d6c1ca8ca")!,
                 full: URL(string: "https://images.unsplash.com/photo-1773008752582-287d6c1ca8ca?crop=entropy&cs=srgb&fm=jpg&q=85")!,
                 regular: URL(string: "https://images.unsplash.com/photo-1773008752582-287d6c1ca8ca?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080")!,
                 small: URL(string: "https://images.unsplash.com/photo-1773008752582-287d6c1ca8ca?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=400")!,
@@ -122,6 +130,7 @@ enum PhotoPreviewFixtures {
             colorHex: "#262626",
             description: "Woman with dramatic makeup at night with city lights",
             imageURLs: .init(
+                raw: URL(string: "https://images.unsplash.com/photo-1773579616514-28fd4bd552b8")!,
                 full: URL(string: "https://images.unsplash.com/photo-1773579616514-28fd4bd552b8?crop=entropy&cs=srgb&fm=jpg&q=85")!,
                 regular: URL(string: "https://images.unsplash.com/photo-1773579616514-28fd4bd552b8?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080")!,
                 small: URL(string: "https://images.unsplash.com/photo-1773579616514-28fd4bd552b8?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=400")!,
@@ -137,6 +146,7 @@ enum PhotoPreviewFixtures {
             colorHex: "#260c0c",
             description: "Woman illuminated by red light at night",
             imageURLs: .init(
+                raw: URL(string: "https://images.unsplash.com/photo-1774217396090-1e4faf7bbb67")!,
                 full: URL(string: "https://images.unsplash.com/photo-1774217396090-1e4faf7bbb67?crop=entropy&cs=srgb&fm=jpg&q=85")!,
                 regular: URL(string: "https://images.unsplash.com/photo-1774217396090-1e4faf7bbb67?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080")!,
                 small: URL(string: "https://images.unsplash.com/photo-1774217396090-1e4faf7bbb67?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=400")!,
@@ -155,6 +165,7 @@ enum PhotoPreviewFixtures {
             colorHex: "#262626",
             description: "Portable ssd, coffee, and stationery on a grid mat",
             imageURLs: .init(
+                raw: URL(string: "https://images.unsplash.com/photo-1779896412352-dd950bd9ce71?ixid=M3wxMDU5MzU4fDF8MXxhbGx8MXx8fHx8fHx8MTc4OTUwMzM3MHw&ixlib=rb-4.1.0")!,
                 full: URL(string: "https://images.unsplash.com/photo-1779896412352-dd950bd9ce71?crop=entropy&cs=srgb&fm=jpg&ixid=M3wxMDU5MzU4fDF8MXxhbGx8MXx8fHx8fHx8MTc4OTUwMzM3MHw&ixlib=rb-4.1.0&q=85")!,
                 regular: URL(string: "https://images.unsplash.com/photo-1779896412352-dd950bd9ce71?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3wxMDU5MzU4fDF8MXxhbGx8MXx8fHx8fHx8MTc4OTUwMzM3MHw&ixlib=rb-4.1.0&q=80&w=1080")!,
                 small: URL(string: "https://images.unsplash.com/photo-1779896412352-dd950bd9ce71?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3wxMDU5MzU4fDF8MXxhbGx8MXx8fHx8fHx8MTc4OTUwMzM3MHw&ixlib=rb-4.1.0&q=80&w=400")!,
@@ -176,6 +187,7 @@ enum PhotoPreviewFixtures {
             colorHex: "#598c8c",
             description: "A metal lifeguard chair on a sandy beach by the ocean",
             imageURLs: .init(
+                raw: URL(string: "https://images.unsplash.com/photo-1789283170426-1d1305571e26?ixid=M3wxMDU5MzU4fDB8MXxhbGx8Mnx8fHx8fHx8MTc4OTUwMzM3MHw&ixlib=rb-4.1.0")!,
                 full: URL(string: "https://images.unsplash.com/photo-1789283170426-1d1305571e26?crop=entropy&cs=srgb&fm=jpg&ixid=M3wxMDU5MzU4fDB8MXxhbGx8Mnx8fHx8fHx8MTc4OTUwMzM3MHw&ixlib=rb-4.1.0&q=85")!,
                 regular: URL(string: "https://images.unsplash.com/photo-1789283170426-1d1305571e26?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3wxMDU5MzU4fDB8MXxhbGx8Mnx8fHx8fHx8MTc4OTUwMzM3MHw&ixlib=rb-4.1.0&q=80&w=1080")!,
                 small: URL(string: "https://images.unsplash.com/photo-1789283170426-1d1305571e26?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3wxMDU5MzU4fDB8MXxhbGx8Mnx8fHx8fHx8MTc4OTUwMzM3MHw&ixlib=rb-4.1.0&q=80&w=400")!,
@@ -197,6 +209,7 @@ enum PhotoPreviewFixtures {
             colorHex: "#0c2640",
             description: "An ocean wave breaking at sunset with vibrant sky colors",
             imageURLs: .init(
+                raw: URL(string: "https://images.unsplash.com/photo-1785677535400-725b852ff2e1?ixid=M3wxMDU5MzU4fDB8MXxhbGx8M3x8fHx8fHx8MTc4OTUwMzM3MHw&ixlib=rb-4.1.0")!,
                 full: URL(string: "https://images.unsplash.com/photo-1785677535400-725b852ff2e1?crop=entropy&cs=srgb&fm=jpg&ixid=M3wxMDU5MzU4fDB8MXxhbGx8M3x8fHx8fHx8MTc4OTUwMzM3MHw&ixlib=rb-4.1.0&q=85")!,
                 regular: URL(string: "https://images.unsplash.com/photo-1785677535400-725b852ff2e1?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3wxMDU5MzU4fDB8MXxhbGx8M3x8fHx8fHx8MTc4OTUwMzM3MHw&ixlib=rb-4.1.0&q=80&w=1080")!,
                 small: URL(string: "https://images.unsplash.com/photo-1785677535400-725b852ff2e1?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3wxMDU5MzU4fDB8MXxhbGx8M3x8fHx8fHx8MTc4OTUwMzM3MHw&ixlib=rb-4.1.0&q=80&w=400")!,

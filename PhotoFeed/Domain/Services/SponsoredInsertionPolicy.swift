@@ -16,10 +16,12 @@ nonisolated struct SponsoredInsertionPolicy: Sendable {
         self.organicItemsBetweenSponsored = organicItemsBetweenSponsored
     }
 
-    func insertionIndex(in items: [TodayFeedItem], currentVisibleIndex: Int) -> Int? {
-        guard !items.isEmpty else {
-            return nil
-        }
+    func insertionIndex<Items: RandomAccessCollection>(
+        in items: Items,
+        currentVisibleIndex: Int
+    ) -> Int? where Items.Element == TodayFeedItem, Items.Index == Int {
+
+        guard !items.isEmpty else { return nil }
 
         let safeInsertionIndex = min(max(currentVisibleIndex + 1, 0), items.count)
 

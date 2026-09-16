@@ -9,6 +9,8 @@ import SwiftUI
 
 struct DetailUserPhoto: View {
 
+    @Environment(\.displayScale) private var displayScale
+
     let photo: Photo
     let imagePipeline: RemoteImagePipeline
     let onSelect: () -> Void
@@ -19,7 +21,15 @@ struct DetailUserPhoto: View {
                 .fill(.quaternary)
                 .frame(width: 160, height: 205)
                 .overlay {
-                    RemoteImageView(url: photo.imageURLs.small, pipeline: imagePipeline) {
+                    RemoteImageView(
+                        url: DetailImageVariant.userPhotoThumbnail.url(
+                            from: photo.imageURLs.raw,
+                            displayScale: displayScale
+                        ),
+                        pipeline: imagePipeline,
+                        blurHash: photo.blurHash,
+                        placeholderAspectRatio: photoAspectRatio
+                    ) {
                         ProgressView()
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                     }
@@ -31,6 +41,14 @@ struct DetailUserPhoto: View {
         .buttonStyle(.plain)
         .accessibilityLabel(accessibilityLabel)
         .accessibilityHint("Opens photo viewer")
+    }
+
+    private var photoAspectRatio: CGFloat {
+        guard photo.width > 0, photo.height > 0 else {
+            return 160 / 205
+        }
+
+        return CGFloat(photo.width) / CGFloat(photo.height)
     }
 
     private var accessibilityLabel: LocalizedStringResource {

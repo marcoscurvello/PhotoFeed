@@ -11,12 +11,16 @@ struct DetailHeroMedia: View {
 
     let imageURL: URL
     let imagePipeline: RemoteImagePipeline
+    let blurHash: String?
+    let photoAspectRatio: CGFloat
     let contentMode: ContentMode
 
     var body: some View {
         RemoteImageView(
             url: imageURL,
             pipeline: imagePipeline,
+            blurHash: blurHash,
+            placeholderAspectRatio: photoAspectRatio,
             contentMode: contentMode
         ) {
             Rectangle()
@@ -56,6 +60,8 @@ struct DetailHeroMedia: View {
         DetailHeroMedia(
             imageURL: PhotoPreviewFixtures.detailPhoto.imageURLs.regular,
             imagePipeline: PhotoPreviewFixtures.imagePipeline,
+            blurHash: PhotoPreviewFixtures.detailPhoto.blurHash,
+            photoAspectRatio: CGFloat(PhotoPreviewFixtures.detailPhoto.aspectRatio),
             contentMode: .fit
         )
         .frame(height: 460)

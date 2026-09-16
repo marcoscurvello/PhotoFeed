@@ -32,6 +32,7 @@ struct ContentView: View {
     @ViewBuilder
     private func detailDestination(for photo: Photo) -> some View {
         let detailView = DetailView(
+            photo: photo,
             viewModel: dependencies.makeDetailViewModel(for: photo),
             imagePipeline: dependencies.imagePipeline
         )

@@ -9,6 +9,8 @@ import SwiftUI
 
 struct ZoomablePhotoView: View {
 
+    @Environment(\.displayScale) private var displayScale
+
     private enum Constants {
         static let minimumScale: CGFloat = 1
         static let doubleTapScale: CGFloat = 2
@@ -29,8 +31,13 @@ struct ZoomablePhotoView: View {
     var body: some View {
         GeometryReader { proxy in
             RemoteImageView(
-                url: photo.imageURLs.regular,
+                url: DetailImageVariant.viewer.url(
+                    from: photo.imageURLs.raw,
+                    displayScale: displayScale
+                ),
                 pipeline: imagePipeline,
+                blurHash: photo.blurHash,
+                placeholderAspectRatio: photoAspectRatio,
                 contentMode: .fit
             ) {
                 ProgressView()
@@ -86,6 +93,14 @@ struct ZoomablePhotoView: View {
                     isZoomed = true
                 }
             }
+    }
+
+    private var photoAspectRatio: CGFloat {
+        guard photo.width > 0, photo.height > 0 else {
+            return 1
+        }
+
+        return CGFloat(photo.width) / CGFloat(photo.height)
     }
 
     private func dragGesture(containerSize: CGSize) -> some Gesture {

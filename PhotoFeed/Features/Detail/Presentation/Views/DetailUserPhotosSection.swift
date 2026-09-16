@@ -12,12 +12,12 @@ struct DetailUserPhotosSection: View {
     @State private var selectedViewerPhoto: Photo?
 
     let viewModel: DetailViewModel
-    let mainPhotoID: Photo.ID
     let photographerName: String
     let imagePipeline: RemoteImagePipeline
 
     var body: some View {
-        let additionalUserPhotos = viewModel.userPhotos.filter { $0.id != mainPhotoID }
+        let userPhotosState = viewModel.userPhotosState
+        let additionalUserPhotos = userPhotosState.loadedValue ?? []
 
         VStack(alignment: .leading, spacing: 16) {
             Text("More by \(photographerName)")
@@ -25,30 +25,34 @@ struct DetailUserPhotosSection: View {
                 .lineLimit(2)
                 .padding(.horizontal, 20)
 
-            if !additionalUserPhotos.isEmpty {
-                ScrollView(.horizontal) {
-                    LazyHStack(spacing: 12) {
-                        ForEach(additionalUserPhotos) { photo in
-                            DetailUserPhoto(photo: photo, imagePipeline: imagePipeline) {
-                                selectedViewerPhoto = photo
+            switch userPhotosState {
+                case .loaded(let photos) where !photos.isEmpty:
+                    ScrollView(.horizontal) {
+                        LazyHStack(spacing: 12) {
+                            ForEach(photos) { photo in
+                                DetailUserPhoto(photo: photo, imagePipeline: imagePipeline) {
+                                    selectedViewerPhoto = photo
+                                }
                             }
                         }
                     }
-                }
-                .contentMargins(.horizontal, 20, for: .scrollContent)
-                .scrollIndicators(.hidden)
-            } else if viewModel.isLoadingUserPhotos {
-                ProgressView()
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 28)
-            } else if viewModel.userPhotosErrorMessage != nil {
-                DetailUserPhotosFailure(viewModel: viewModel)
-                    .padding(.horizontal, 20)
-            } else {
-                Text("No additional photos available.")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 20)
+                    .contentMargins(.horizontal, 20, for: .scrollContent)
+                    .scrollIndicators(.hidden)
+
+                case .loading:
+                    ProgressView()
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 28)
+
+                case .failed:
+                    DetailUserPhotosFailure(viewModel: viewModel)
+                        .padding(.horizontal, 20)
+
+                case .loaded, .idle:
+                    Text("No additional photos available.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 20)
             }
         }
         .fullScreenCover(item: $selectedViewerPhoto) { photo in
@@ -95,8 +99,7 @@ private struct DetailUserPhotosFailure: View {
 
     DetailUserPhotosSection(
         viewModel: viewModel,
-        mainPhotoID: viewModel.photo.id,
-        photographerName: viewModel.photo.user.name,
+        photographerName: PhotoPreviewFixtures.detailPhoto.user.name,
         imagePipeline: PhotoPreviewFixtures.imagePipeline
     )
     .task { await viewModel.load() }
@@ -109,8 +112,7 @@ private struct DetailUserPhotosFailure: View {
 
     DetailUserPhotosSection(
         viewModel: viewModel,
-        mainPhotoID: viewModel.photo.id,
-        photographerName: viewModel.photo.user.name,
+        photographerName: PhotoPreviewFixtures.detailPhoto.user.name,
         imagePipeline: PhotoPreviewFixtures.imagePipeline
     )
     .task { await viewModel.load() }
@@ -123,8 +125,7 @@ private struct DetailUserPhotosFailure: View {
 
     DetailUserPhotosSection(
         viewModel: viewModel,
-        mainPhotoID: viewModel.photo.id,
-        photographerName: viewModel.photo.user.name,
+        photographerName: PhotoPreviewFixtures.detailPhoto.user.name,
         imagePipeline: PhotoPreviewFixtures.imagePipeline
     )
     .task { await viewModel.load() }
