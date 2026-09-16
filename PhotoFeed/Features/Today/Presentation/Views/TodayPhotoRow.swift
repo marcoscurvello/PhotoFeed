@@ -24,7 +24,7 @@ struct TodayPhotoRow: View {
             action: action
         )
 
-        Group {
+        ZStack {
             if #available(iOS 18.0, *) {
                 photoCard.matchedTransitionSource(
                     id: item.photo.id,
