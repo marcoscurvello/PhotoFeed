@@ -72,7 +72,7 @@ private nonisolated struct PreviewPhotoDetailRepository: PhotoDetailRepository {
         case loadFailed
 
         var errorDescription: String? {
-            String(localized: "The preview detail service is unavailable.")
+            "The preview detail service is unavailable."
         }
     }
 }

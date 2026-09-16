@@ -120,7 +120,7 @@ enum TodayPreviewFixtures {
         case loadFailed
 
         var errorDescription: String? {
-            String(localized: "The preview photo service is unavailable.")
+            "The preview photo service is unavailable."
         }
     }
 }

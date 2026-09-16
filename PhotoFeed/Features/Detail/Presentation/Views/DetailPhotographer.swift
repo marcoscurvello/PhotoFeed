@@ -31,7 +31,7 @@ struct DetailPhotographer: View {
                     .font(.headline)
                     .lineLimit(2)
 
-                Text("@\(user.username)")
+                Text(verbatim: "@\(user.username)")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)

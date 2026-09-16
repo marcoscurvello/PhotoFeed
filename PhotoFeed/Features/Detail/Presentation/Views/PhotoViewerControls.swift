@@ -31,7 +31,10 @@ struct PhotoViewerControls: View {
                 Spacer()
 
                 if let currentPosition {
-                    Text("\(currentPosition) / \(totalCount)")
+                    Text(
+                        "\(currentPosition, format: .number) / \(totalCount, format: .number)",
+                        comment: "Position in the photo viewer. The first value is the current photo and the second is the total number of photos."
+                    )
                         .font(.subheadline.weight(.semibold))
                         .padding(.horizontal, 12)
                         .frame(height: 40)
