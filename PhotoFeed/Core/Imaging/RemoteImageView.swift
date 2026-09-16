@@ -11,10 +11,15 @@ import UIKit
 
 struct RemoteImageView<Placeholder: View>: View {
 
-    private enum Phase {
-        case loading(url: URL)
-        case success(url: URL, image: Image)
-        case failure(url: URL)
+    private enum ImagePhase {
+        case loading
+        case success(Image)
+        case failure
+    }
+
+    private struct ImageState {
+        let url: URL
+        var phase: ImagePhase
     }
 
     private struct PlaceholderRequest: Hashable {
@@ -34,7 +39,7 @@ struct RemoteImageView<Placeholder: View>: View {
     private let contentMode: ContentMode
     private let placeholder: Placeholder
 
-    @State private var phase: Phase
+    @State private var imageState: ImageState
     @State private var decodedPlaceholder: DecodedPlaceholder?
 
     init(
@@ -51,11 +56,7 @@ struct RemoteImageView<Placeholder: View>: View {
         self.placeholderAspectRatio = placeholderAspectRatio
         self.contentMode = contentMode
         self.placeholder = placeholder()
-        _phase = State(
-            initialValue: pipeline.cachedImage(for: url).map {
-                .success(url: url, image: Image(uiImage: $0))
-            } ?? .loading(url: url)
-        )
+        _imageState = State(initialValue: ImageState(url: url, phase: .loading))
     }
 
     var body: some View {
@@ -70,22 +71,20 @@ struct RemoteImageView<Placeholder: View>: View {
 
     @ViewBuilder
     private var content: some View {
-        if case .success(let imageURL, let image) = phase, imageURL == url {
+        if imageState.url == url,
+           case .success(let image) = imageState.phase {
             imageContent(image)
         } else if let cachedImage = pipeline.cachedImage(for: url) {
             imageContent(Image(uiImage: cachedImage))
+        } else if imageState.url == url,
+                  case .failure = imageState.phase {
+            Image(systemName: "photo")
+                .resizable()
+                .scaledToFit()
+                .foregroundStyle(.secondary)
+                .padding()
         } else {
-            switch phase {
-                case .failure(let failedURL) where failedURL == url:
-                    Image(systemName: "photo")
-                        .resizable()
-                        .scaledToFit()
-                        .foregroundStyle(.secondary)
-                        .padding()
-
-                default:
-                    loadingContent
-            }
+            loadingContent
         }
     }
 
@@ -115,32 +114,49 @@ struct RemoteImageView<Placeholder: View>: View {
     }
 
     private func loadImage() async {
-        if case .success(let successfulURL, _) = phase, successfulURL == url {
+        let requestURL = url
+
+        guard beginImageRequest(for: requestURL) else {
             return
         }
 
-        if let cachedImage = pipeline.cachedImage(for: url) {
-            phase = .success(url: url, image: Image(uiImage: cachedImage))
+        if let cachedImage = pipeline.cachedImage(for: requestURL) {
+            transition(to: .success(Image(uiImage: cachedImage)), for: requestURL)
             return
         }
-
-        phase = .loading(url: url)
 
         do {
-            let image = try await pipeline.image(for: url)
-
-            guard !Task.isCancelled else {
-                return
-            }
-
-            phase = .success(url: url, image: Image(uiImage: image))
+            let image = try await pipeline.image(for: requestURL)
+            transition(to: .success(Image(uiImage: image)), for: requestURL)
         } catch {
-            guard !Task.isCancelled else {
-                return
-            }
-
-            phase = .failure(url: url)
+            transition(to: .failure, for: requestURL)
         }
+    }
+
+    private func beginImageRequest(for requestURL: URL) -> Bool {
+        guard !Task.isCancelled else {
+            return false
+        }
+
+        if imageState.url != requestURL {
+            imageState = ImageState(url: requestURL, phase: .loading)
+            return true
+        }
+
+        if case .success = imageState.phase {
+            return false
+        }
+
+        imageState.phase = .loading
+        return true
+    }
+
+    private func transition(to phase: ImagePhase, for requestURL: URL) {
+        guard !Task.isCancelled, imageState.url == requestURL else {
+            return
+        }
+
+        imageState.phase = phase
     }
 
     private func loadPlaceholder() async {
