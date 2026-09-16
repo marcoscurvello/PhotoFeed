@@ -22,7 +22,7 @@ struct PhotoViewerControls: View {
                 } label: {
                     Image(systemName: "xmark")
                         .font(.body.weight(.semibold))
-                        .frame(width: 40, height: 40)
+                        .frame(width: 44, height: 44)
                         .background(.black.opacity(0.45))
                         .clipShape(Circle())
                 }
