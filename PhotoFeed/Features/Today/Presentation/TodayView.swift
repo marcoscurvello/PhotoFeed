@@ -40,7 +40,7 @@ struct TodayView: View {
 
     TodayView(
         viewModel: TodayPreviewFixtures.makeViewModel(),
-        imagePipeline: TodayPreviewFixtures.imagePipeline,
+        imagePipeline: PhotoPreviewFixtures.imagePipeline,
         transitionNamespace: transitionNamespace,
         onSelect: { _ in }
     )

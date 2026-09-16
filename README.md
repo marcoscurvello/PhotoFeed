@@ -1,6 +1,17 @@
 # PhotoFeed
 
-Sample iOS 17+ app that interacts with the Unsplash API.
+A sample iOS 17+ SwiftUI app powered by the Unsplash API.
+
+PhotoFeed feats an infinite scrolling photo feed with unobtrusive sponsored content insertion, image prefetching for smooth scrolling, and a custom matched transition into a detail view featuring photographer photos and statistics.
+
+## Demo
+  <p align="left">
+    <img
+      src=".github/assets/photofeed-demo.gif"
+      alt="PhotoFeed iOS app demonstration"
+      width="320"
+    >
+  </p>
 
 ## Running the app
 

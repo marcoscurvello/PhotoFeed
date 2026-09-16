@@ -71,9 +71,9 @@ struct PhotoViewerPager: View {
     @Previewable @State var isZoomed = false
 
     PhotoViewerPager(
-        photos: TodayPreviewFixtures.photos,
-        initialPhotoID: TodayPreviewFixtures.photo.id,
-        imagePipeline: TodayPreviewFixtures.imagePipeline,
+        photos: PhotoPreviewFixtures.detailUserPhotos,
+        initialPhotoID: PhotoPreviewFixtures.detailPhoto.id,
+        imagePipeline: PhotoPreviewFixtures.imagePipeline,
         isZoomed: $isZoomed,
         isDismissing: false
     )

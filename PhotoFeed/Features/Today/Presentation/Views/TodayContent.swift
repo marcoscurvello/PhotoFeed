@@ -42,7 +42,7 @@ struct TodayContent: View {
         LazyVStack(spacing: 24) {
             TodayContent(
                 viewModel: viewModel,
-                imagePipeline: TodayPreviewFixtures.imagePipeline,
+                imagePipeline: PhotoPreviewFixtures.imagePipeline,
                 transitionNamespace: transitionNamespace,
                 onSelect: { _ in }
             )

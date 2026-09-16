@@ -98,16 +98,39 @@ struct PhotoCardView: View {
             .clipShape(Capsule())
     }
 
-    private var accessibilityLabel: String {
-        let attribution = photo.description.map { "\($0), photo by \(photo.user.name)" } ?? "Photo by \(photo.user.name)"
-        return isSponsored ? "Sponsored, \(attribution)" : attribution
+    private var accessibilityLabel: LocalizedStringResource {
+        switch (photo.description, isSponsored) {
+            case let (.some(description), true):
+                LocalizedStringResource(
+                    "Sponsored, \(description), photo by \(photo.user.name)",
+                    comment: "Accessibility label for a sponsored photo card. The first placeholder is the photo description and the second is the photographer's name."
+                )
+
+            case let (.some(description), false):
+                LocalizedStringResource(
+                    "\(description), photo by \(photo.user.name)",
+                    comment: "Accessibility label for a photo card. The first placeholder is the photo description and the second is the photographer's name."
+                )
+
+            case (.none, true):
+                LocalizedStringResource(
+                    "Sponsored, photo by \(photo.user.name)",
+                    comment: "Accessibility label for a sponsored photo card without a description. The placeholder is the photographer's name."
+                )
+
+            case (.none, false):
+                LocalizedStringResource(
+                    "Photo by \(photo.user.name)",
+                    comment: "Accessibility label for a photo card without a description. The placeholder is the photographer's name."
+                )
+        }
     }
 }
 
 #Preview("Card") {
     PhotoCardView(
-        photo: TodayPreviewFixtures.photo,
-        imagePipeline: TodayPreviewFixtures.imagePipeline,
+        photo: PhotoPreviewFixtures.photo,
+        imagePipeline: PhotoPreviewFixtures.imagePipeline,
         style: .card,
         action: {}
     )
@@ -116,8 +139,8 @@ struct PhotoCardView: View {
 
 #Preview("Full Bleed") {
     PhotoCardView(
-        photo: TodayPreviewFixtures.photo,
-        imagePipeline: TodayPreviewFixtures.imagePipeline,
+        photo: PhotoPreviewFixtures.photo,
+        imagePipeline: PhotoPreviewFixtures.imagePipeline,
         style: .fullBleed,
         action: {}
     )
@@ -125,8 +148,8 @@ struct PhotoCardView: View {
 
 #Preview("Sponsored") {
     PhotoCardView(
-        photo: TodayPreviewFixtures.photos[1],
-        imagePipeline: TodayPreviewFixtures.imagePipeline,
+        photo: PhotoPreviewFixtures.sponsoredPhotos[0],
+        imagePipeline: PhotoPreviewFixtures.imagePipeline,
         style: .card,
         isSponsored: true,
         action: {}

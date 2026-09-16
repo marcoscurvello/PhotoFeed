@@ -26,8 +26,8 @@ struct TodayFeedSection: View {
                         .padding(.horizontal, 20)
                         .padding(.top, 80)
 
-                case .failed(let message):
-                    TodayErrorView(message: message) {
+                case .failed:
+                    TodayErrorView {
                         await viewModel.retry()
                     }
             }
@@ -51,7 +51,7 @@ struct TodayFeedSection: View {
         LazyVStack(spacing: 24) {
             TodayFeedSection(
                 viewModel: viewModel,
-                imagePipeline: TodayPreviewFixtures.imagePipeline,
+                imagePipeline: PhotoPreviewFixtures.imagePipeline,
                 transitionNamespace: transitionNamespace,
                 onSelect: { _ in }
             )
@@ -70,7 +70,7 @@ struct TodayFeedSection: View {
         LazyVStack(spacing: 24) {
             TodayFeedSection(
                 viewModel: viewModel,
-                imagePipeline: TodayPreviewFixtures.imagePipeline,
+                imagePipeline: PhotoPreviewFixtures.imagePipeline,
                 transitionNamespace: transitionNamespace,
                 onSelect: { _ in }
             )
@@ -89,7 +89,7 @@ struct TodayFeedSection: View {
         LazyVStack(spacing: 24) {
             TodayFeedSection(
                 viewModel: viewModel,
-                imagePipeline: TodayPreviewFixtures.imagePipeline,
+                imagePipeline: PhotoPreviewFixtures.imagePipeline,
                 transitionNamespace: transitionNamespace,
                 onSelect: { _ in }
             )

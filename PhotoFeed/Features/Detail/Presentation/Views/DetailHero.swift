@@ -67,8 +67,8 @@ struct DetailHero: View {
 #Preview {
     ScrollView {
         DetailHero(
-            photo: TodayPreviewFixtures.photo,
-            imagePipeline: TodayPreviewFixtures.imagePipeline
+            photo: PhotoPreviewFixtures.detailPhoto,
+            imagePipeline: PhotoPreviewFixtures.imagePipeline
         )
     }
     .ignoresSafeArea(.container, edges: .top)

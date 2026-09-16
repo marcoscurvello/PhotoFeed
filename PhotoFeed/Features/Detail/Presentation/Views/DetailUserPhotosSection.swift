@@ -97,7 +97,7 @@ private struct DetailUserPhotosFailure: View {
         viewModel: viewModel,
         mainPhotoID: viewModel.photo.id,
         photographerName: viewModel.photo.user.name,
-        imagePipeline: TodayPreviewFixtures.imagePipeline
+        imagePipeline: PhotoPreviewFixtures.imagePipeline
     )
     .task { await viewModel.load() }
 }
@@ -111,7 +111,7 @@ private struct DetailUserPhotosFailure: View {
         viewModel: viewModel,
         mainPhotoID: viewModel.photo.id,
         photographerName: viewModel.photo.user.name,
-        imagePipeline: TodayPreviewFixtures.imagePipeline
+        imagePipeline: PhotoPreviewFixtures.imagePipeline
     )
     .task { await viewModel.load() }
 }
@@ -125,7 +125,7 @@ private struct DetailUserPhotosFailure: View {
         viewModel: viewModel,
         mainPhotoID: viewModel.photo.id,
         photographerName: viewModel.photo.user.name,
-        imagePipeline: TodayPreviewFixtures.imagePipeline
+        imagePipeline: PhotoPreviewFixtures.imagePipeline
     )
     .task { await viewModel.load() }
 }

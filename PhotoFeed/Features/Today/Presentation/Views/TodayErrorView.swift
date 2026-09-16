@@ -9,14 +9,13 @@ import SwiftUI
 
 struct TodayErrorView: View {
 
-    let message: String
     let onRetry: () async -> Void
 
     var body: some View {
         ContentUnavailableView {
             Label("Unable to load photos", systemImage: "wifi.exclamationmark")
         } description: {
-            Text(message)
+            Text("Check your connection and try loading the latest photos again.")
         } actions: {
             Button("Retry") {
                 Task {
@@ -34,7 +33,6 @@ struct TodayErrorView: View {
 }
 #Preview("Feed error") {
     TodayErrorView(
-        message: "Check your connection and try loading the latest photos again.",
         onRetry: {}
     )
 }

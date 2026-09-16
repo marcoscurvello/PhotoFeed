@@ -19,7 +19,7 @@ struct DetailMetric: View {
                 .font(.headline)
                 .foregroundStyle(.secondary)
 
-            Text(metric.total.formatted())
+            Text(metric.total, format: .number)
                 .font(.headline)
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
@@ -28,7 +28,10 @@ struct DetailMetric: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
 
-            Text("\(signed(metric.change)) / \(metric.periodDays)d")
+            Text(
+                "\(metric.change, format: .number.sign(strategy: .always(includingZero: false))) / \(metric.periodDays, format: .number) days",
+                comment: "Statistics change summary. The first placeholder is the signed change and the second is the number of days in its comparison period."
+            )
                 .font(.caption2)
                 .foregroundStyle(.tertiary)
                 .lineLimit(1)
@@ -39,9 +42,6 @@ struct DetailMetric: View {
         .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
     }
 
-    private func signed(_ value: Int) -> String {
-        value > 0 ? "+\(value.formatted())" : value.formatted()
-    }
 }
 
 #Preview {

@@ -46,7 +46,7 @@ struct DetailScrollView: View {
         DetailScrollView(
             photo: viewModel.photo,
             viewModel: viewModel,
-            imagePipeline: TodayPreviewFixtures.imagePipeline
+            imagePipeline: PhotoPreviewFixtures.imagePipeline
         )
     }
     .task { await viewModel.load() }

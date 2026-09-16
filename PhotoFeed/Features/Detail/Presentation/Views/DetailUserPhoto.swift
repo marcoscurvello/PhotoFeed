@@ -29,15 +29,29 @@ struct DetailUserPhoto: View {
                 .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
         }
         .buttonStyle(.plain)
-        .accessibilityLabel(photo.description ?? "Photo by \(photo.user.name)")
+        .accessibilityLabel(accessibilityLabel)
         .accessibilityHint("Opens photo viewer")
+    }
+
+    private var accessibilityLabel: LocalizedStringResource {
+        if let description = photo.description {
+            LocalizedStringResource(
+                "\(description), photo by \(photo.user.name)",
+                comment: "Accessibility label for a photographer's photo. The first placeholder is the photo description and the second is the photographer's name."
+            )
+        } else {
+            LocalizedStringResource(
+                "Photo by \(photo.user.name)",
+                comment: "Accessibility label for a photographer's photo without a description. The placeholder is the photographer's name."
+            )
+        }
     }
 }
 
 #Preview {
     DetailUserPhoto(
-        photo: TodayPreviewFixtures.photos[1],
-        imagePipeline: TodayPreviewFixtures.imagePipeline,
+        photo: PhotoPreviewFixtures.detailUserPhotos[1],
+        imagePipeline: PhotoPreviewFixtures.imagePipeline,
         onSelect: {}
     )
     .padding()

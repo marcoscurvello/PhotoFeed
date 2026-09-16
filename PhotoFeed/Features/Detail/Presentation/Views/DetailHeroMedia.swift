@@ -54,8 +54,8 @@ struct DetailHeroMedia: View {
 #Preview {
     ScrollView {
         DetailHeroMedia(
-            imageURL: TodayPreviewFixtures.photo.imageURLs.regular,
-            imagePipeline: TodayPreviewFixtures.imagePipeline,
+            imageURL: PhotoPreviewFixtures.detailPhoto.imageURLs.regular,
+            imagePipeline: PhotoPreviewFixtures.imagePipeline,
             contentMode: .fit
         )
         .frame(height: 460)

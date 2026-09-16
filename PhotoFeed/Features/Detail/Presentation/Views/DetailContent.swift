@@ -39,7 +39,7 @@ struct DetailContent: View {
             user: viewModel.photo.user,
             mainPhotoID: viewModel.photo.id,
             viewModel: viewModel,
-            imagePipeline: TodayPreviewFixtures.imagePipeline
+            imagePipeline: PhotoPreviewFixtures.imagePipeline
         )
     }
     .task { await viewModel.load() }
