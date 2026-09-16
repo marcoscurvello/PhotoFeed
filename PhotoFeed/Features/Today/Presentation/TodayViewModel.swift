@@ -19,7 +19,7 @@ final class TodayViewModel {
     enum State: Equatable {
         case ready
         case loading
-        case failed(String)
+        case failed
     }
 
     private let repository: any PhotosRepository
@@ -181,7 +181,7 @@ final class TodayViewModel {
             case .potentiallyTransient(_),
                  .nonTransient,
                  .unknown:
-                state = .failed(error.localizedDescription)
+                state = .failed
         }
     }
 

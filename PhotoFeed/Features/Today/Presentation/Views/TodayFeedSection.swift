@@ -26,8 +26,8 @@ struct TodayFeedSection: View {
                         .padding(.horizontal, 20)
                         .padding(.top, 80)
 
-                case .failed(let message):
-                    TodayErrorView(message: message) {
+                case .failed:
+                    TodayErrorView {
                         await viewModel.retry()
                     }
             }
