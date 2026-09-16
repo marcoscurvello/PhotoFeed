@@ -18,6 +18,7 @@ nonisolated struct Photo: Identifiable, Hashable, Sendable {
     }
 
     nonisolated struct ImageURLs: Hashable, Sendable {
+        let raw: URL
         let full: URL
         let regular: URL
         let small: URL

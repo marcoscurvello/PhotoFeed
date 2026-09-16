@@ -17,6 +17,7 @@ nonisolated extension PhotoDTO {
             blurHash: blurHash,
             description: description ?? altDescription,
             imageURLs: Photo.ImageURLs(
+                raw: urls.raw,
                 full: urls.full,
                 regular: urls.regular,
                 small: urls.small,

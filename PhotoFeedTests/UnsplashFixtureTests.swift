@@ -22,6 +22,7 @@ struct UnsplashFixtureTests {
         #expect(photos[0].user.name == "Sandisk")
         #expect(photos[0].user.username == "sandisk")
         #expect(photos[0].urls.regular.host == "images.unsplash.com")
+        #expect(photos[0].domainModel.imageURLs.raw == photos[0].urls.raw)
         #expect(photos[0].blurHash == "LVD+}J4o~pRj_3R.x]tR-q%3t7xa")
         #expect(photos[0].domainModel.blurHash == photos[0].blurHash)
     }

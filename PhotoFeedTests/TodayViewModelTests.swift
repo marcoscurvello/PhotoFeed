@@ -731,6 +731,7 @@ private nonisolated func makePhoto(id: String) -> Photo {
         colorHex: nil,
         description: id,
         imageURLs: .init(
+            raw: imageURL,
             full: imageURL,
             regular: imageURL,
             small: imageURL,
