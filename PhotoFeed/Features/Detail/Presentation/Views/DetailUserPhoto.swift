@@ -9,6 +9,8 @@ import SwiftUI
 
 struct DetailUserPhoto: View {
 
+    @Environment(\.displayScale) private var displayScale
+
     let photo: Photo
     let imagePipeline: RemoteImagePipeline
     let onSelect: () -> Void
@@ -20,7 +22,10 @@ struct DetailUserPhoto: View {
                 .frame(width: 160, height: 205)
                 .overlay {
                     RemoteImageView(
-                        url: photo.imageURLs.small,
+                        url: DetailImageVariant.userPhotoThumbnail.url(
+                            from: photo.imageURLs.raw,
+                            displayScale: displayScale
+                        ),
                         pipeline: imagePipeline,
                         blurHash: photo.blurHash,
                         placeholderAspectRatio: photoAspectRatio

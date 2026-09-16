@@ -9,6 +9,8 @@ import SwiftUI
 
 struct ZoomablePhotoView: View {
 
+    @Environment(\.displayScale) private var displayScale
+
     private enum Constants {
         static let minimumScale: CGFloat = 1
         static let doubleTapScale: CGFloat = 2
@@ -29,7 +31,10 @@ struct ZoomablePhotoView: View {
     var body: some View {
         GeometryReader { proxy in
             RemoteImageView(
-                url: photo.imageURLs.regular,
+                url: DetailImageVariant.viewer.url(
+                    from: photo.imageURLs.raw,
+                    displayScale: displayScale
+                ),
                 pipeline: imagePipeline,
                 blurHash: photo.blurHash,
                 placeholderAspectRatio: photoAspectRatio,
