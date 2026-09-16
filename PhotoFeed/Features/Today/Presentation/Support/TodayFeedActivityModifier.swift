@@ -77,6 +77,7 @@ private struct TodayFeedActivityModifier: ViewModifier {
         anchors: [TodayFeedItem.ID: Anchor<CGRect>],
         in proxy: GeometryProxy
     ) -> BottomVisibleItem? {
+
         let viewport = proxy.frame(in: .local)
         var bottomVisibleItem: (id: TodayFeedItem.ID, frame: CGRect)?
 
@@ -105,15 +106,14 @@ private struct TodayFeedActivityModifier: ViewModifier {
     }
 
     private func prefetchUpcomingImages(after bottomVisibleItemID: TodayFeedItem.ID?) async {
-        guard let bottomVisibleItemID,
-              let bottomVisibleItemIndex = viewModel.items.firstIndex(where: { $0.id == bottomVisibleItemID }) else {
+        let upcomingURLs = viewModel.upcomingRegularImageURLs(
+            after: bottomVisibleItemID,
+            limit: Constants.imagePrefetchWindowSize
+        )
+
+        guard !upcomingURLs.isEmpty else {
             return
         }
-
-        let upcomingURLs = viewModel.items
-            .dropFirst(bottomVisibleItemIndex + 1)
-            .prefix(Constants.imagePrefetchWindowSize)
-            .map { $0.photo.imageURLs.regular }
 
         await imagePipeline.prefetch(upcomingURLs)
     }
