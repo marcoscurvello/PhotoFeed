@@ -193,7 +193,7 @@ struct TodayViewModelTests {
         viewModel.setSponsoredLoadingActive(false)
     }
 
-    @Test("Sponsored content inserts after the visible boundary becomes offscreen-safe")
+    @Test("Sponsored content inserts after the visible boundary becomes safe")
     @MainActor
     func waitsForAnOffscreenSafeInsertionBoundary() async throws {
         let organicPhotos = (1...10).map { makePhoto(id: "p\($0)") }

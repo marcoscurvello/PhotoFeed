@@ -290,15 +290,15 @@ final class TodayViewModel {
 
             guard
                 let insertionIndex = sponsoredInsertionPolicy.insertionIndex(
-                in: draftItems,
-                currentVisibleIndex: furthestReachedIndex
-            ) else {
-                break
-            }
-
-            let isImmediatelyAfterCurrentVisibleItem = insertionIndex == currentVisibleIndex + 1
-
-            guard !isImmediatelyAfterCurrentVisibleItem || isImmediateInsertionOffscreenSafe else {
+                    in: draftItems,
+                    currentVisibleIndex: furthestReachedIndex
+                ),
+                sponsoredInsertionPolicy.isInsertionSafe(
+                    at: insertionIndex,
+                    currentVisibleIndex: currentVisibleIndex,
+                    isImmediateInsertionOffscreenSafe: isImmediateInsertionOffscreenSafe
+                )
+            else {
                 break
             }
 

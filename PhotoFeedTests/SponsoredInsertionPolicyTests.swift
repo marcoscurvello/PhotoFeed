@@ -27,6 +27,24 @@ struct SponsoredInsertionPolicyTests {
         #expect(insertionIndex == 1)
     }
 
+    @Test("Immediate insertion waits while the current boundary is onscreen")
+    func immediateInsertionWaitsForOffscreenSafety() {
+        let policy = SponsoredInsertionPolicy(organicItemsBetweenSponsored: 3)
+        let unsafeInsertion = policy.isInsertionSafe(
+            at: 1,
+            currentVisibleIndex: 0,
+            isImmediateInsertionOffscreenSafe: false
+        )
+        let safeInsertion = policy.isInsertionSafe(
+            at: 1,
+            currentVisibleIndex: 0,
+            isImmediateInsertionOffscreenSafe: true
+        )
+
+        #expect(!unsafeInsertion)
+        #expect(safeInsertion)
+    }
+
     @Test("First sponsored item never inserts above the current position")
     func firstSponsoredItemRespectsCurrentPosition() {
         let policy = SponsoredInsertionPolicy(organicItemsBetweenSponsored: 3)
