@@ -44,4 +44,12 @@ nonisolated struct SponsoredInsertionPolicy: Sendable {
 
         return nil
     }
+
+    func isInsertionSafe(
+        at insertionIndex: Int,
+        currentVisibleIndex: Int,
+        isImmediateInsertionOffscreenSafe: Bool
+    ) -> Bool {
+        insertionIndex != currentVisibleIndex + 1 || isImmediateInsertionOffscreenSafe
+    }
 }

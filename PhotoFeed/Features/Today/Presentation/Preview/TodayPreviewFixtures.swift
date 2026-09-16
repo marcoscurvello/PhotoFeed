@@ -12,6 +12,12 @@ import Foundation
 @MainActor
 enum TodayPreviewFixtures {
 
+    enum RepositoryBehavior: Sendable {
+        case success
+        case loading
+        case failure
+    }
+
     static let imagePipeline = RemoteImagePipeline()
 
     static let photo = Photo(
@@ -64,8 +70,18 @@ enum TodayPreviewFixtures {
     nonisolated struct PreviewPhotosRepository: PhotosRepository {
         let photos: [Photo]
         let sponsoredPhotos: [Photo]
+        let behavior: RepositoryBehavior
 
         func photos(page: Int, perPage: Int) async throws -> PhotoPage {
+            switch behavior {
+                case .success:
+                    break
+                case .loading:
+                    try await Task.sleep(for: .seconds(3_600))
+                case .failure:
+                    throw PreviewRepositoryError.loadFailed
+            }
+
             let startIndex = (page - 1) * perPage
             let pagePhotos: [Photo]
 
@@ -90,8 +106,22 @@ enum TodayPreviewFixtures {
     }
 
     @MainActor
-    static func makeViewModel() -> TodayViewModel {
-        TodayViewModel(repository: PreviewPhotosRepository(photos: photos, sponsoredPhotos: photos))
+    static func makeViewModel(behavior: RepositoryBehavior = .success) -> TodayViewModel {
+        TodayViewModel(
+            repository: PreviewPhotosRepository(
+                photos: photos,
+                sponsoredPhotos: photos,
+                behavior: behavior
+            )
+        )
+    }
+
+    nonisolated enum PreviewRepositoryError: LocalizedError {
+        case loadFailed
+
+        var errorDescription: String? {
+            String(localized: "The preview photo service is unavailable.")
+        }
     }
 }
 

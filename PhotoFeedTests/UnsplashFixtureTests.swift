@@ -16,11 +16,34 @@ struct UnsplashFixtureTests {
     func decodesTodayPhotos() throws {
         let photos: [PhotoDTO] = try FixtureLoader().load(named: "today_photos")
 
-        #expect(!photos.isEmpty)
-        #expect(photos[0].id == "oTDuuLUhH20")
-        #expect(photos[0].user.name == "Microsoft Copilot")
-        #expect(photos[0].user.username == "microsoftcopilot")
+        #expect(photos.count == 60)
+        #expect(Set(photos.map(\.id)).count == photos.count)
+        #expect(photos[0].id == "-oFU4FKenNI")
+        #expect(photos[0].user.name == "Sandisk")
+        #expect(photos[0].user.username == "sandisk")
         #expect(photos[0].urls.regular.host == "images.unsplash.com")
+    }
+
+    @Test("Sponsored fixture photos are unique across requests")
+    func producesUniqueSponsoredPhotosAcrossRequests() async throws {
+        let repository = FixturePhotosRepository()
+
+        let firstBatch = try await repository.sponsoredPhotos(count: 3)
+        let secondBatch = try await repository.sponsoredPhotos(count: 3)
+        let allPhotos = firstBatch + secondBatch
+
+        #expect(allPhotos.count == 6)
+        #expect(Set(allPhotos.map(\.id)).count == allPhotos.count)
+        #expect(firstBatch.map(\.id.rawValue) == [
+            "fixture-sponsored-0-ScZ_EMuC_lY",
+            "fixture-sponsored-1-b1FrQVPyIhQ",
+            "fixture-sponsored-2-Xd8ctkMatn8"
+        ])
+        #expect(secondBatch.map(\.id.rawValue) == [
+            "fixture-sponsored-3-ScZ_EMuC_lY",
+            "fixture-sponsored-4-b1FrQVPyIhQ",
+            "fixture-sponsored-5-Xd8ctkMatn8"
+        ])
     }
 
     @Test("Photo statistics fixture decodes")
