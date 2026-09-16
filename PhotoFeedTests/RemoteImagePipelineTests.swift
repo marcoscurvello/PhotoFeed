@@ -82,6 +82,21 @@ nonisolated struct RemoteImagePipelineTests {
         #expect(counter.count == 1)
     }
 
+    @Test("Concurrent callers receive the same decoded BlurHash placeholder")
+    func concurrentCallersReceiveSameDecodedPlaceholder() async throws {
+        let pipeline = makePipeline()
+        let blurHash = "LEHV6nWB2yk8pyo0adR*.7kCMdnj"
+
+        async let first = pipeline.placeholder(for: blurHash)
+        async let second = pipeline.placeholder(for: blurHash)
+
+        let firstImage = try #require(await first)
+        let secondImage = try #require(await second)
+
+        #expect(firstImage === secondImage)
+        #expect(pipeline.cachedPlaceholder(for: blurHash) === firstImage)
+    }
+
     @Test("Cancelling a caller does not abort or discard the shared fetch", .timeLimit(.minutes(1)))
     func callerCancellationPreservesSharedFetch() async throws {
         let counter = RequestCounter()
@@ -348,6 +363,19 @@ nonisolated struct RemoteImagePipelineTests {
         _ = try await pipeline.image(for: url)
 
         #expect(counter.count == 2)
+    }
+
+    @Test("Removing all cached data also removes decoded BlurHash placeholders")
+    func removesAllCachedBlurHashPlaceholders() async throws {
+        let pipeline = makePipeline()
+        let blurHash = "00TI:j"
+
+        let image = try #require(await pipeline.placeholder(for: blurHash))
+        #expect(pipeline.cachedPlaceholder(for: blurHash) === image)
+
+        await pipeline.removeAllCachedData()
+
+        #expect(pipeline.cachedPlaceholder(for: blurHash) == nil)
     }
 
     @Test("Removing one cached URL does not evict another URL")
