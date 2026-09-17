@@ -170,6 +170,14 @@ final class TodayViewModel {
             .map(\.photo.imageURLs.regular)
     }
 
+    private var furthestReachedIndex: Int? {
+        guard let furthestReachedItemID else {
+            return nil
+        }
+
+        return itemIndex(for: furthestReachedItemID)
+    }
+
     private func load(page: Int) async {
         state = .loading
 
@@ -342,14 +350,6 @@ final class TodayViewModel {
 
         admittedPhotoIDs = draftAdmittedPhotoIDs
         feedItems = draftItems
-    }
-
-    private var furthestReachedIndex: Int? {
-        guard let furthestReachedItemID else {
-            return nil
-        }
-
-        return itemIndex(for: furthestReachedItemID)
     }
 
     private func itemIndex(for id: TodayFeedItem.ID) -> Int? {
