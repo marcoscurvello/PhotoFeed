@@ -72,8 +72,8 @@ nonisolated struct HTTPClient: Sendable {
             throw HTTPClientError.invalidURL
         }
 
-        if !request.queryItems.isEmpty {
-            components.queryItems = request.queryItems
+        if !request.queryParameters.isEmpty {
+            components.queryItems = request.queryParameters.map(\.urlQueryItem)
         }
 
         guard let url = components.url else {

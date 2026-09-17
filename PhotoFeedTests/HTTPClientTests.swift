@@ -12,6 +12,11 @@ import Testing
 @Suite("HTTP client", .serialized)
 struct HTTPClientTests {
 
+    private enum QueryName: String {
+        case page
+        case perPage = "per_page"
+    }
+
     @Test("Successful response builds the request and decodes its body")
     func decodesSuccessfulResponse() async throws {
         let responseData = try JSONEncoder().encode(TestResponse(value: "success"))
@@ -42,9 +47,9 @@ struct HTTPClientTests {
         let client = makeClient()
         let request = HTTPRequest(
             path: "photos",
-            queryItems: [
-                URLQueryItem(name: "page", value: "2"),
-                URLQueryItem(name: "per_page", value: "10")
+            queryParameters: [
+                HTTPQueryParameter(name: QueryName.page, value: "2"),
+                HTTPQueryParameter(name: QueryName.perPage, value: "10")
             ],
             headers: [
                 "Authorization": "Client-ID test-key"

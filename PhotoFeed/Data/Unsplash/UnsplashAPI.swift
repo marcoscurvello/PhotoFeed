@@ -30,17 +30,12 @@ nonisolated struct UnsplashAPI: Sendable {
     }
 
     func photosWithMetadata(page: Int, perPage: Int) async throws -> PhotoPageDTO {
-        let response: HTTPResponseDecoded<[PhotoDTO]> =
-            try await sendWithMetadata(.photos(page: page, perPage: perPage))
+        let response: HTTPResponseDecoded<[PhotoDTO]> = try await sendWithMetadata(.photos(page: page, perPage: perPage))
 
-        guard
-            let totalValue = response[header: HeaderKeys.paginationTotal],
-            let total = Int(totalValue),
-            total >= 0,
-            let perPageValue = response[header: HeaderKeys.perPage],
-            let responsePerPage = Int(perPageValue),
-            responsePerPage > 0
-        else {
+        guard let totalValue = response[header: HeaderKeys.paginationTotal],
+              let total = Int(totalValue), total >= 0,
+              let perPageValue = response[header: HeaderKeys.perPage],
+              let responsePerPage = Int(perPageValue), responsePerPage > 0 else {
             throw UnsplashAPIError.invalidPaginationHeaders
         }
 
@@ -69,23 +64,19 @@ nonisolated struct UnsplashAPI: Sendable {
     }
 
     private func send<Response: HTTPResponse>(_ endpoint: UnsplashEndpoint) async throws -> Response {
-        let request = HTTPRequest(
-            path: endpoint.path,
-            queryItems: endpoint.queryItems,
-            headers: defaultHeaders
-        )
-
-        return try await client.send(request)
+        try await client.send(request(for: endpoint))
     }
 
     private func sendWithMetadata<Response: HTTPResponse>(_ endpoint: UnsplashEndpoint) async throws -> HTTPResponseDecoded<Response> {
-        let request = HTTPRequest(
+        try await client.sendWithMetadata(request(for: endpoint))
+    }
+
+    private func request(for endpoint: UnsplashEndpoint) -> HTTPRequest {
+        HTTPRequest(
             path: endpoint.path,
-            queryItems: endpoint.queryItems,
+            queryParameters: endpoint.queryParameters,
             headers: defaultHeaders
         )
-
-        return try await client.sendWithMetadata(request)
     }
 
     private var defaultHeaders: [String: String] {

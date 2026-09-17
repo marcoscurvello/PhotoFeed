@@ -11,18 +11,18 @@ nonisolated struct HTTPRequest: Sendable {
 
     let path: String
     let method: HTTPMethod
-    let queryItems: [URLQueryItem]
+    let queryParameters: [HTTPQueryParameter]
     let headers: [String: String]
 
     init(
         path: String,
         method: HTTPMethod = .get,
-        queryItems: [URLQueryItem] = [],
+        queryParameters: [HTTPQueryParameter] = [],
         headers: [String: String] = [:]
     ) {
         self.path = path
         self.method = method
-        self.queryItems = queryItems
+        self.queryParameters = queryParameters
         self.headers = headers
     }
 }
