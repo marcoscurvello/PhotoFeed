@@ -18,75 +18,29 @@ struct DetailStatisticsSection: View {
 
             switch viewModel.statisticsState {
                 case .loaded(let statistics):
-                    HStack(spacing: 12) {
-                        DetailMetric(
-                            title: "Views",
-                            systemImage: "eye",
-                            metric: statistics.views
-                        )
-
-                        if let likes = statistics.likes {
-                            DetailMetric(
-                                title: "Likes",
-                                systemImage: "heart",
-                                metric: likes
-                            )
-                        }
-
-                        DetailMetric(
-                            title: "Downloads",
-                            systemImage: "arrow.down",
-                            metric: statistics.downloads
-                        )
-                    }
+                    DetailStatisticsMetrics(
+                        views: statistics.views,
+                        likes: statistics.likes,
+                        downloads: statistics.downloads
+                    )
 
                 case .loading:
                     ProgressView()
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 28)
 
-                case .failed:
-                    DetailStatisticsFailure(viewModel: viewModel)
+                case .failed(let failure), .retrying(let failure):
+                    DetailStatisticsFailure(
+                        failure: failure,
+                        isRetrying: viewModel.statisticsState == .retrying(failure),
+                        onRetry: { await viewModel.retryStatistics() }
+                    )
 
                 case .idle:
                     EmptyView()
             }
         }
         .padding(.horizontal, 20)
-    }
-}
-
-private struct DetailStatisticsFailure: View {
-
-    let viewModel: DetailViewModel
-
-    var body: some View {
-        HStack(spacing: 12) {
-            Image(systemName: "chart.bar.xaxis")
-                .font(.title3)
-                .foregroundStyle(.secondary)
-
-            VStack(alignment: .leading, spacing: 3) {
-                Text("Statistics unavailable")
-                    .font(.subheadline.weight(.semibold))
-
-                Text("We couldn't load statistics for this photo.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-
-            Spacer(minLength: 8)
-
-            Button("Retry") {
-                Task {
-                    await viewModel.retryStatistics()
-                }
-            }
-            .buttonStyle(.bordered)
-        }
-        .padding(16)
-        .background(.quaternary.opacity(0.5))
-        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
     }
 }
 

@@ -37,4 +37,15 @@ struct AppDependencies {
 
         return AppDependencies(repository: repository)
     }
+
+#if DEBUG
+    static func fixture(failure configuration: DebugFailureConfiguration) -> AppDependencies {
+        AppDependencies(
+            repository: FaultInjectingPhotoRepository(
+                base: FixturePhotosRepository(),
+                configuration: configuration
+            )
+        )
+    }
+#endif
 }

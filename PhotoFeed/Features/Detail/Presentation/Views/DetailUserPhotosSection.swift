@@ -20,6 +20,7 @@ struct DetailUserPhotosSection: View {
         let additionalUserPhotos = userPhotosState.loadedValue ?? []
 
         VStack(alignment: .leading, spacing: 16) {
+
             Text("More by \(photographerName)")
                 .font(.title2.bold())
                 .lineLimit(2)
@@ -44,9 +45,13 @@ struct DetailUserPhotosSection: View {
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 28)
 
-                case .failed:
-                    DetailUserPhotosFailure(viewModel: viewModel)
-                        .padding(.horizontal, 20)
+                case .failed(let failure), .retrying(let failure):
+                    DetailUserPhotosFailure(
+                        failure: failure,
+                        isRetrying: userPhotosState == .retrying(failure),
+                        onRetry: { await viewModel.retryUserPhotos() }
+                    )
+                    .padding(.horizontal, 20)
 
                 case .loaded, .idle:
                     Text("No additional photos available.")

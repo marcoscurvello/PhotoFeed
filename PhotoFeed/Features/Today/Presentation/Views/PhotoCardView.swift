@@ -56,9 +56,12 @@ struct PhotoCardView: View {
                     .allowsHitTesting(false)
                 }
                 .overlay(alignment: .bottomLeading) {
-                    metadata
-                        .padding(.horizontal, 20)
-                        .padding(.bottom, 20)
+                    PhotoCardMetadata(
+                        description: photo.description,
+                        photographerName: photo.user.name
+                    )
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 20)
                 }
                 .overlay(alignment: .topTrailing) {
                     if isSponsored {
@@ -72,25 +75,6 @@ struct PhotoCardView: View {
         .buttonStyle(.plain)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(accessibilityLabel)
-    }
-
-    private var metadata: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            if let description = photo.description {
-                Text(description)
-                    .font(.title3.weight(.semibold))
-                    .foregroundStyle(.white)
-                    .multilineTextAlignment(.leading)
-                    .lineLimit(2)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
-
-            Text("Photo by \(photo.user.name)")
-                .font(.subheadline)
-                .foregroundStyle(.white.opacity(0.8))
-                .lineLimit(1)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var photoAspectRatio: CGFloat {

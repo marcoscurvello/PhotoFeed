@@ -22,14 +22,12 @@ struct TodayPaginationFooter: View {
                     ProgressView()
                         .padding(.vertical, 24)
 
-                case .failed:
-                    Button("Retry") {
-                        Task {
-                            await viewModel.retry()
-                        }
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .padding(.vertical, 24)
+                case .failed(let failure), .retrying(let failure):
+                    TodayPaginationFailure(
+                        failure: failure,
+                        isRetrying: viewModel.state == .retrying(failure),
+                        onRetry: { await viewModel.retry() }
+                    )
             }
         }
         .frame(maxWidth: .infinity)
@@ -50,4 +48,13 @@ struct TodayPaginationFooter: View {
 
     TodayPaginationFooter(viewModel: viewModel)
         .task { await viewModel.loadIfNeeded(bottomVisibleItemID: nil) }
+}
+
+#Preview("Rate limited footer") {
+    @Previewable
+    @State var viewModel = TodayPreviewFixtures.makeViewModel(behavior: .rateLimited)
+
+    TodayPaginationFooter(viewModel: viewModel)
+        .task { await viewModel.loadIfNeeded(bottomVisibleItemID: nil) }
+        .padding(.horizontal, 20)
 }

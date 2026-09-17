@@ -21,7 +21,8 @@ final class TodayViewModel {
     enum State: Equatable {
         case ready
         case loading
-        case failed
+        case failed(ResourceLoadFailure)
+        case retrying(ResourceLoadFailure)
     }
 
     private let repository: any PhotosRepository
@@ -142,11 +143,12 @@ final class TodayViewModel {
     }
 
     func retry() async {
-        guard case .failed = state, let nextPage else {
+        guard case .failed(let failure) = state, failure.canRetry(), let nextPage else {
             return
         }
 
-        await load(page: nextPage)
+        state = .retrying(failure)
+        await load(page: nextPage, retrying: failure)
     }
 
     func photoStyle(for item: TodayFeedItem) -> PhotoCardStyle {
@@ -178,14 +180,16 @@ final class TodayViewModel {
         return itemIndex(for: furthestReachedItemID)
     }
 
-    private func load(page: Int) async {
-        state = .loading
+    private func load(page: Int, retrying failure: ResourceLoadFailure? = nil) async {
+        if failure == nil {
+            state = .loading
+        }
 
         do {
             let photoPage = try await repository.photos(page: page, perPage: Constants.defaultPageSize)
 
             guard !Task.isCancelled else {
-                state = .ready
+                state = failure.map(State.failed) ?? .ready
                 return
             }
 
@@ -197,20 +201,21 @@ final class TodayViewModel {
             insertPendingSponsoredPhotosIfPossible()
             replenishSponsoredPhotosIfNeeded()
         } catch {
-            handle(error)
+            handle(error, retrying: failure)
         }
     }
 
-    private func handle(_ error: Error) {
-        switch HTTPRequestFailureClassification(error) {
-            case .cancelled:
-                state = .ready
-
-            case .potentiallyTransient(_),
-                 .nonTransient,
-                 .unknown:
-                state = .failed
+    private func handle(_ error: Error, retrying failure: ResourceLoadFailure?) {
+        guard !isCancellation(error) else {
+            state = failure.map(State.failed) ?? .ready
+            return
         }
+
+        state = .failed((error as? ResourceLoadFailure) ?? .unknown)
+    }
+
+    private func isCancellation(_ error: Error) -> Bool {
+        error is CancellationError || (error as? URLError)?.code == .cancelled
     }
 
     private func appendOrganicPhotos(_ photos: [Photo]) {

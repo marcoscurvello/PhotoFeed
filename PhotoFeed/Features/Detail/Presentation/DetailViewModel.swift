@@ -8,21 +8,6 @@
 import Foundation
 import Observation
 
-nonisolated enum DetailResourceState<Value: Equatable & Sendable>: Equatable, Sendable {
-    case idle
-    case loading
-    case loaded(Value)
-    case failed
-
-    var loadedValue: Value? {
-        guard case .loaded(let value) = self else {
-            return nil
-        }
-
-        return value
-    }
-}
-
 @MainActor
 @Observable
 final class DetailViewModel {
@@ -46,11 +31,21 @@ final class DetailViewModel {
     }
 
     func retryUserPhotos() async {
-        await fetchUserPhotos()
+        guard case .failed(let failure) = userPhotosState, failure.canRetry() else {
+            return
+        }
+
+        userPhotosState = .retrying(failure)
+        await fetchUserPhotos(retrying: failure)
     }
 
     func retryStatistics() async {
-        await fetchStatistics()
+        guard case .failed(let failure) = statisticsState, failure.canRetry() else {
+            return
+        }
+
+        statisticsState = .retrying(failure)
+        await fetchStatistics(retrying: failure)
     }
 
     private func loadUserPhotosIfNeeded() async {
@@ -69,12 +64,14 @@ final class DetailViewModel {
         await fetchStatistics()
     }
 
-    private func fetchUserPhotos() async {
-        guard userPhotosState != .loading else {
-            return
-        }
+    private func fetchUserPhotos(retrying failure: ResourceLoadFailure? = nil) async {
+        if failure == nil {
+            guard userPhotosState != .loading else {
+                return
+            }
 
-        userPhotosState = .loading
+            userPhotosState = .loading
+        }
 
         do {
             let userPhotos = try await repository.userPhotos(
@@ -84,44 +81,48 @@ final class DetailViewModel {
             )
 
             guard !Task.isCancelled else {
-                userPhotosState = .idle
+                userPhotosState = failure.map(DetailResourceState.failed) ?? .idle
                 return
             }
 
             userPhotosState = .loaded(userPhotos.filter { $0.id != photo.id })
         } catch {
-            userPhotosState = state(for: error)
+            userPhotosState = state(for: error, retrying: failure)
         }
     }
 
-    private func fetchStatistics() async {
-        guard statisticsState != .loading else {
-            return
-        }
+    private func fetchStatistics(retrying failure: ResourceLoadFailure? = nil) async {
+        if failure == nil {
+            guard statisticsState != .loading else {
+                return
+            }
 
-        statisticsState = .loading
+            statisticsState = .loading
+        }
 
         do {
             let statistics = try await repository.statistics(photoID: photo.id)
 
             guard !Task.isCancelled else {
-                statisticsState = .idle
+                statisticsState = failure.map(DetailResourceState.failed) ?? .idle
                 return
             }
 
             statisticsState = .loaded(statistics)
         } catch {
-            statisticsState = state(for: error)
+            statisticsState = state(for: error, retrying: failure)
         }
     }
 
-    private func state<Value: Equatable & Sendable>(for error: Error) -> DetailResourceState<Value> {
-        switch HTTPRequestFailureClassification(error) {
-        case .cancelled:
-            .idle
+    private func state<Value: Equatable & Sendable>(
+        for error: Error,
+        retrying failure: ResourceLoadFailure?
+    ) -> DetailResourceState<Value> {
 
-        case .potentiallyTransient, .nonTransient, .unknown:
-            .failed
+        guard !(error is CancellationError || (error as? URLError)?.code == .cancelled) else {
+            return failure.map(DetailResourceState.failed) ?? .idle
         }
+
+        return .failed((error as? ResourceLoadFailure) ?? .unknown)
     }
 }

@@ -23,12 +23,18 @@ struct TodayFeedSection: View {
                 case .loading:
                     ProgressView()
                         .frame(maxWidth: .infinity)
-                        .padding(.horizontal, 20)
-                        .padding(.top, 80)
+                        .containerRelativeFrame(.vertical)
 
-                case .failed:
-                    TodayErrorView {
-                        await viewModel.retry()
+                case .failed(let failure), .retrying(let failure):
+                    if case .rateLimited = failure {
+                        TodayPaginationFooter(viewModel: viewModel)
+                    } else {
+                        TodayErrorView(
+                            failure: failure,
+                            isRetrying: viewModel.state == .retrying(failure)
+                        ) {
+                            await viewModel.retry()
+                        }
                     }
             }
         } else {

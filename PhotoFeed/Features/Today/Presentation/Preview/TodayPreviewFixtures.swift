@@ -15,6 +15,7 @@ enum TodayPreviewFixtures {
         case success
         case loading
         case failure
+        case rateLimited
     }
 
     static func makeViewModel(behavior: RepositoryBehavior = .success) -> TodayViewModel {
@@ -40,6 +41,14 @@ enum TodayPreviewFixtures {
                     try await Task.sleep(for: .seconds(3_600))
                 case .failure:
                     throw PreviewRepositoryError.loadFailed
+                case .rateLimited:
+                    throw ResourceLoadFailure.rateLimited(
+                        .init(
+                            limit: 50,
+                            remaining: 0,
+                            retryAfter: .now.addingTimeInterval(600)
+                        )
+                    )
             }
 
             let startIndex = (page - 1) * perPage

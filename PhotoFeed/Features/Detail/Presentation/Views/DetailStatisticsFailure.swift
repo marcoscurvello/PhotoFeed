@@ -1,5 +1,5 @@
 //
-//  DetailUserPhotosFailure.swift
+//  DetailStatisticsFailure.swift
 //  PhotoFeed
 //
 //  Created by Marcos Curvello on 17/09/2026.
@@ -7,7 +7,7 @@
 
 import SwiftUI
 
-struct DetailUserPhotosFailure: View {
+struct DetailStatisticsFailure: View {
 
     let failure: ResourceLoadFailure
     let isRetrying: Bool
@@ -25,16 +25,16 @@ struct DetailUserPhotosFailure: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            Image(systemName: "photo.on.rectangle.angled")
+            Image(systemName: "chart.bar.xaxis")
                 .font(.title3)
                 .foregroundStyle(.secondary)
                 .accessibilityHidden(true)
 
             VStack(alignment: .leading, spacing: 3) {
-                Text("More photos couldn't be loaded.")
+                Text("Statistics unavailable")
                     .font(.subheadline.weight(.semibold))
 
-                Text(ResourceLoadFailurePresentation(failure, context: .userPhotos).message)
+                Text(ResourceLoadFailurePresentation(failure, context: .statistics).message)
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -52,18 +52,10 @@ struct DetailUserPhotosFailure: View {
         .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
     }
 }
-#Preview {
-    @Previewable @State var viewModel = DetailPreviewFixtures.makeViewModel(userPhotosBehavior: .failure)
 
-    DetailUserPhotosFailure(
-        failure: .offline,
-        onRetry: { await viewModel.retryUserPhotos() }
-    )
-}
-
-#Preview("Unavailable user photos") {
-    DetailUserPhotosFailure(
-        failure: .notFound,
+#Preview("Statistics service unavailable") {
+    DetailStatisticsFailure(
+        failure: .serviceUnavailable(retryAfter: .now.addingTimeInterval(300)),
         onRetry: {}
     )
     .padding()
