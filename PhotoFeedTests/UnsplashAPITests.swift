@@ -154,11 +154,247 @@ nonisolated struct UnsplashAPITests {
                 _ = try await makeAPI(requestCounter: requestCounter)
                     .photosWithMetadata(page: 1, perPage: 10)
                 Issue.record("Expected invalid pagination headers to fail")
-            } catch let error as UnsplashAPIError {
-                #expect(error == .invalidPaginationHeaders)
+            } catch let error as ResourceLoadFailure {
+                #expect(error == .invalidResponse)
             } catch {
                 Issue.record("Unexpected error: \(error)")
             }
+        }
+    }
+
+    @Test("Rate-limited responses expose the Unsplash quota and retry deadline")
+    func mapsRateLimitedResponse() async throws {
+        let requestCounter = RequestCounter()
+        let deadline = "120"
+        UnsplashAPIURLProtocolStub.handler = { request in
+            let url = try #require(request.url)
+            let response = try #require(
+                HTTPURLResponse(
+                    url: url,
+                    statusCode: 429,
+                    httpVersion: nil,
+                    headerFields: [
+                        "X-RateLimit-Limit": "50",
+                        "X-RateLimit-Remaining": "0",
+                        "Retry-After": deadline
+                    ]
+                )
+            )
+            return (response, Data(#"{"errors":["Rate Limit Exceeded"]}"#.utf8))
+        }
+        defer {
+            UnsplashAPIURLProtocolStub.handler = nil
+            UnsplashAPIURLProtocolStub.requestCounter = nil
+        }
+
+        do {
+            _ = try await makeAPI(requestCounter: requestCounter).photosWithMetadata(page: 1, perPage: 10)
+            Issue.record("Expected a rate-limit failure")
+        } catch let ResourceLoadFailure.rateLimited(snapshot) {
+            #expect(snapshot.limit == 50)
+            #expect(snapshot.remaining == 0)
+            #expect(snapshot.retryAfter != nil)
+        } catch {
+            Issue.record("Unexpected error: \(error)")
+        }
+    }
+
+    @Test("An exhausted rate-limit header makes a 403 response rate limited")
+    func mapsExhaustedForbiddenResponse() async throws {
+        let requestCounter = RequestCounter()
+        UnsplashAPIURLProtocolStub.handler = { request in
+            let url = try #require(request.url)
+            let response = try #require(
+                HTTPURLResponse(
+                    url: url,
+                    statusCode: 403,
+                    httpVersion: nil,
+                    headerFields: [
+                        "X-RateLimit-Limit": "50",
+                        "X-RateLimit-Remaining": "0"
+                    ]
+                )
+            )
+            return (response, Data(#"{"errors":["Missing permissions"]}"#.utf8))
+        }
+        defer {
+            UnsplashAPIURLProtocolStub.handler = nil
+            UnsplashAPIURLProtocolStub.requestCounter = nil
+        }
+
+        do {
+            _ = try await makeAPI(requestCounter: requestCounter).photosWithMetadata(page: 1, perPage: 10)
+            Issue.record("Expected a rate-limit failure")
+        } catch let ResourceLoadFailure.rateLimited(snapshot) {
+            #expect(snapshot.limit == 50)
+            #expect(snapshot.remaining == 0)
+            #expect(snapshot.retryAfter == nil)
+        } catch {
+            Issue.record("Unexpected error: \(error)")
+        }
+    }
+
+    @Test("A rate-limit error message makes a 403 response rate limited without quota headers")
+    func mapsRateLimitErrorMessageWithoutQuotaHeaders() async {
+        let expectedFailure = ResourceLoadFailure.rateLimited(
+            .init(limit: nil, remaining: nil, retryAfter: nil)
+        )
+
+        await assertPhotosRequestMapsToFailure(expectedFailure) { request in
+            let response = try Self.response(
+                for: request,
+                statusCode: 403
+            )
+            return (response, Data(#"{"errors":["Rate limit exceeded"]}"#.utf8))
+        }
+    }
+
+    @Test("An ordinary 403 response remains an access failure")
+    func mapsForbiddenResponse() async throws {
+        let requestCounter = RequestCounter()
+        UnsplashAPIURLProtocolStub.handler = { request in
+            let url = try #require(request.url)
+            let response = try #require(
+                HTTPURLResponse(
+                    url: url,
+                    statusCode: 403,
+                    httpVersion: nil,
+                    headerFields: ["X-RateLimit-Remaining": "12"]
+                )
+            )
+            return (response, Data(#"{"errors":["Missing permissions"]}"#.utf8))
+        }
+        defer {
+            UnsplashAPIURLProtocolStub.handler = nil
+            UnsplashAPIURLProtocolStub.requestCounter = nil
+        }
+
+        do {
+            _ = try await makeAPI(requestCounter: requestCounter).photosWithMetadata(page: 1, perPage: 10)
+            Issue.record("Expected an access failure")
+        } catch let failure as ResourceLoadFailure {
+            #expect(failure == .accessDenied)
+        } catch {
+            Issue.record("Unexpected error: \(error)")
+        }
+    }
+
+    @Test("Endpoints without success metadata still map API failures")
+    func mapsFailureFromPlainSendEndpoint() async throws {
+        let requestCounter = RequestCounter()
+        UnsplashAPIURLProtocolStub.handler = { request in
+            let url = try #require(request.url)
+            let response = try #require(
+                HTTPURLResponse(
+                    url: url,
+                    statusCode: 429,
+                    httpVersion: nil,
+                    headerFields: [
+                        "X-RateLimit-Limit": "50",
+                        "X-RateLimit-Remaining": "0"
+                    ]
+                )
+            )
+            return (response, Data(#"{"errors":["Rate Limit Exceeded"]}"#.utf8))
+        }
+        defer {
+            UnsplashAPIURLProtocolStub.handler = nil
+            UnsplashAPIURLProtocolStub.requestCounter = nil
+        }
+
+        do {
+            _ = try await makeAPI(requestCounter: requestCounter).statistics(photoID: "photo-1")
+            Issue.record("Expected a rate-limit failure")
+        } catch let ResourceLoadFailure.rateLimited(snapshot) {
+            #expect(snapshot.limit == 50)
+            #expect(snapshot.remaining == 0)
+        } catch {
+            Issue.record("Unexpected error: \(error)")
+        }
+    }
+
+    @Test("A request timeout response maps to a timeout failure")
+    func mapsRequestTimeoutResponse() async {
+        await assertPhotosRequestMapsToFailure(.timedOut) { request in
+            (try Self.response(for: request, statusCode: 408), Data())
+        }
+    }
+
+    @Test("A server error preserves a fixed HTTP-date retry deadline")
+    func mapsServerFailureWithHTTPDateRetryDeadline() async {
+        let deadline = Date(timeIntervalSince1970: 1_784_073_600)
+
+        await assertPhotosRequestMapsToFailure(.serviceUnavailable(retryAfter: deadline)) { request in
+            (
+                try Self.response(
+                    for: request,
+                    statusCode: 503,
+                    headers: ["Retry-After": "Wed, 15 Jul 2026 00:00:00 GMT"]
+                ),
+                Data()
+            )
+        }
+    }
+
+    @Test("An offline URL error maps to an offline failure")
+    func mapsOfflineURLError() async {
+        await assertPhotosRequestMapsToFailure(.offline) { _ in
+            throw URLError(.notConnectedToInternet)
+        }
+    }
+
+    @Test("A timed-out URL error maps to a timeout failure")
+    func mapsTimedOutURLError() async {
+        await assertPhotosRequestMapsToFailure(.timedOut) { _ in
+            throw URLError(.timedOut)
+        }
+    }
+
+    @Test("Malformed successful JSON maps to an invalid response failure")
+    func mapsMalformedSuccessfulJSON() async {
+        await assertPhotosRequestMapsToFailure(.invalidResponse) { request in
+            (
+                try Self.response(
+                    for: request,
+                    statusCode: 200,
+                    headers: ["X-Total": "1", "X-Per-Page": "10"]
+                ),
+                Data("malformed JSON".utf8)
+            )
+        }
+    }
+
+    @Test("A cancelled URL error remains a cancellation")
+    func preservesCancelledURLError() async {
+        let requestCounter = RequestCounter()
+        UnsplashAPIURLProtocolStub.handler = { _ in
+            throw URLError(.cancelled)
+        }
+        defer {
+            UnsplashAPIURLProtocolStub.handler = nil
+            UnsplashAPIURLProtocolStub.requestCounter = nil
+        }
+
+        do {
+            _ = try await makeAPI(requestCounter: requestCounter).photosWithMetadata(page: 1, perPage: 10)
+            Issue.record("Expected a cancellation")
+        } catch is CancellationError {
+            // Expected.
+        } catch let error as URLError {
+            #expect(error.code == .cancelled)
+        } catch let error as ResourceLoadFailure {
+            Issue.record("Expected cancellation to remain unwrapped, received \(error)")
+        } catch {
+            Issue.record("Unexpected error: \(error)")
+        }
+
+        #expect(requestCounter.count == 1)
+    }
+
+    @Test("A not-found response maps to a not-found failure")
+    func mapsNotFoundResponse() async {
+        await assertPhotosRequestMapsToFailure(.notFound) { request in
+            (try Self.response(for: request, statusCode: 404), Data())
         }
     }
 
@@ -179,6 +415,41 @@ nonisolated struct UnsplashAPITests {
       }
     }]
     """#
+
+    private static func response(
+        for request: URLRequest,
+        statusCode: Int,
+        headers: [String: String] = [:]
+    ) throws -> HTTPURLResponse {
+        let url = try #require(request.url)
+        return try #require(
+            HTTPURLResponse(
+                url: url,
+                statusCode: statusCode,
+                httpVersion: nil,
+                headerFields: headers
+            )
+        )
+    }
+
+    private func assertPhotosRequestMapsToFailure(
+        _ expectedFailure: ResourceLoadFailure,
+        handler: @escaping (URLRequest) throws -> (HTTPURLResponse, Data)
+    ) async {
+        let requestCounter = RequestCounter()
+        UnsplashAPIURLProtocolStub.handler = handler
+        defer {
+            UnsplashAPIURLProtocolStub.handler = nil
+            UnsplashAPIURLProtocolStub.requestCounter = nil
+        }
+
+        await #expect(throws: expectedFailure) {
+            _ = try await makeAPI(requestCounter: requestCounter)
+                .photosWithMetadata(page: 1, perPage: 10)
+        }
+
+        #expect(requestCounter.count == 1)
+    }
 
     private func makeAPI(requestCounter: RequestCounter) -> UnsplashAPI {
         UnsplashAPIURLProtocolStub.requestCounter = requestCounter

@@ -228,7 +228,7 @@ struct SponsoredCoordinatorTests {
         #expect(await repository.nextRequest() == 1)
 
         await repository.fail(
-            URLError(.badURL)
+            ResourceLoadFailure.accessDenied
         )
 
         let candidates = await task.value

@@ -98,7 +98,10 @@ struct HTTPClientTests {
                     url: url,
                     statusCode: 429,
                     httpVersion: nil,
-                    headerFields: ["Retry-After": "120"]
+                    headerFields: [
+                        "Retry-After": "120",
+                        "X-RateLimit-Remaining": "0"
+                    ]
                 )
             )
             return (response, responseData)
@@ -109,10 +112,11 @@ struct HTTPClientTests {
             let _: HTTPResponseDecoded<TestResponse> = try await makeClient()
                 .sendWithMetadata(HTTPRequest(path: "photos"))
             Issue.record("Expected the request to fail")
-        } catch let HTTPClientError.unacceptableStatusCode(statusCode, data, retryAfter) {
-            #expect(statusCode == 429)
-            #expect(data == responseData)
-            #expect(retryAfter != nil)
+        } catch let HTTPClientError.unacceptableResponse(response) {
+            #expect(response.statusCode == 429)
+            #expect(response.body == responseData)
+            #expect(response.retryAfter != nil)
+            #expect(response[header: "x-ratelimit-remaining"] == "0")
         } catch {
             Issue.record("Unexpected error: \(error)")
         }
@@ -143,13 +147,13 @@ struct HTTPClientTests {
             Issue.record("Expected the request to fail")
         } catch let error as HTTPClientError {
             switch error {
-            case .unacceptableStatusCode(let statusCode, let data, let retryAfter):
-                #expect(statusCode == 429)
-                #expect(data == responseData)
-                #expect(retryAfter == nil)
+            case .unacceptableResponse(let response):
+                #expect(response.statusCode == 429)
+                #expect(response.body == responseData)
+                #expect(response.retryAfter == nil)
 
             default:
-                Issue.record("Expected unacceptableStatusCode, received \(error)")
+                Issue.record("Expected unacceptableResponse, received \(error)")
             }
         } catch {
             Issue.record("Unexpected error: \(error)")
@@ -176,9 +180,9 @@ struct HTTPClientTests {
             do {
                 _ = try await makeClient().data(for: HTTPRequest(path: "photos"))
                 Issue.record("Expected the request to fail")
-            } catch let HTTPClientError.unacceptableStatusCode(_, data, retryAfter) {
-                #expect(data == responseData)
-                let deadline = try #require(retryAfter)
+            } catch let HTTPClientError.unacceptableResponse(response) {
+                #expect(response.body == responseData)
+                let deadline = try #require(response.retryAfter)
                 let afterRequest = Date()
                 let seconds = headerValue.trimmingCharacters(in: .whitespacesAndNewlines)
                 let delay = try #require(TimeInterval(seconds))
@@ -215,8 +219,8 @@ struct HTTPClientTests {
             do {
                 _ = try await makeClient().data(for: HTTPRequest(path: "photos"))
                 Issue.record("Expected the request to fail")
-            } catch let HTTPClientError.unacceptableStatusCode(_, _, retryAfter) {
-                let deadline = try #require(retryAfter)
+            } catch let HTTPClientError.unacceptableResponse(response) {
+                let deadline = try #require(response.retryAfter)
                 #expect(deadline == expected)
             } catch {
                 Issue.record("Unexpected error: \(error)")
@@ -248,10 +252,10 @@ struct HTTPClientTests {
             do {
                 _ = try await makeClient().data(for: HTTPRequest(path: "photos"))
                 Issue.record("Expected the request to fail")
-            } catch let HTTPClientError.unacceptableStatusCode(statusCode, data, retryAfter) {
-                #expect(statusCode == 500)
-                #expect(data == Data("body".utf8))
-                #expect(retryAfter == nil)
+            } catch let HTTPClientError.unacceptableResponse(response) {
+                #expect(response.statusCode == 500)
+                #expect(response.body == Data("body".utf8))
+                #expect(response.retryAfter == nil)
             } catch {
                 Issue.record("Unexpected error: \(error)")
             }

@@ -75,6 +75,31 @@ struct TodayViewModelTests {
         #expect(await repository.organicRequests == [1, 2])
     }
 
+    @Test("Rate-limited pagination preserves the existing feed")
+    @MainActor
+    func rateLimitedPaginationPreservesExistingFeed() async {
+        let photos = (1...10).map { makePhoto(id: "p\($0)") }
+        let failure = ResourceLoadFailure.rateLimited(
+            .init(
+                limit: 50,
+                remaining: 0,
+                retryAfter: .now.addingTimeInterval(600)
+            )
+        )
+        let repository = RateLimitedPaginationRepository(
+            firstPage: photos,
+            failure: failure
+        )
+        let viewModel = TodayViewModel(repository: repository)
+
+        await viewModel.loadIfNeeded(bottomVisibleItemID: nil)
+        await viewModel.loadIfNeeded(bottomVisibleItemID: .organic(photos[9].id))
+
+        #expect(viewModel.items.map(\.photo.id) == photos.map(\.id))
+        #expect(viewModel.state == .failed(failure))
+        #expect(await repository.requestedPages == [1, 2])
+    }
+
     @Test("Retry loads the same organic page after failure")
     @MainActor
     func retryLoadsFailedPageAgain() async {
@@ -100,6 +125,46 @@ struct TodayViewModelTests {
         #expect(viewModel.state == .ready)
         #expect(viewModel.items.map(\.photo.id.rawValue) == ["p1", "p2"])
         #expect(await repository.requestedPages == [1, 1])
+    }
+
+    @Test("Retry retains the failure while its organic request is in flight")
+    @MainActor
+    func retryShowsRetryingStateUntilTheOrganicRequestCompletes() async {
+        let photos = [makePhoto(id: "p1")]
+        let repository = SuspendedRetryingOrganicRepository(photos: photos)
+        let viewModel = TodayViewModel(repository: repository)
+
+        await viewModel.loadIfNeeded(bottomVisibleItemID: nil)
+        #expect(viewModel.state == .failed(.offline))
+
+        let retryTask = Task {
+            await viewModel.retry()
+        }
+
+        await repository.waitUntilRetryStarted()
+        #expect(viewModel.state == .retrying(.offline))
+
+        await repository.completeRetry()
+        await retryTask.value
+
+        #expect(viewModel.state == .ready)
+        #expect(viewModel.items.map(\.photo.id.rawValue) == ["p1"])
+    }
+
+    @Test("Retry does not repeat a request that cannot succeed yet")
+    @MainActor
+    func retryRejectsUnavailableFailure() async {
+        let failure = ResourceLoadFailure.accessDenied
+        let repository = FailingOrganicRepository(failure: failure)
+        let viewModel = TodayViewModel(repository: repository)
+
+        await viewModel.loadIfNeeded(bottomVisibleItemID: nil)
+        #expect(viewModel.state == .failed(failure))
+
+        await viewModel.retry()
+
+        #expect(await repository.requestCount == 1)
+        #expect(viewModel.state == .failed(failure))
     }
 
     @Test("Organic pagination continues while sponsored loading is blocked")
@@ -765,6 +830,128 @@ private actor RetryingOrganicRepository: PhotosRepository {
             perPage: perPage,
             total: photosToReturn.count
         )
+    }
+
+    func sponsoredPhotos(count: Int) async throws -> [Photo] {
+        []
+    }
+}
+
+private actor SuspendedRetryingOrganicRepository: PhotosRepository {
+
+    private let photosToReturn: [Photo]
+    private var attempt = 0
+    private let retryStarted = TodayAsyncGate()
+    private let retryCompletion = TodayAsyncGate()
+
+    init(photos: [Photo]) {
+        photosToReturn = photos
+    }
+
+    func photos(page: Int, perPage: Int) async throws -> PhotoPage {
+        attempt += 1
+
+        guard attempt > 1 else {
+            throw ResourceLoadFailure.offline
+        }
+
+        await retryStarted.open()
+        await retryCompletion.wait()
+
+        return PhotoPage(
+            photos: Array(photosToReturn.prefix(perPage)),
+            page: page,
+            perPage: perPage,
+            total: photosToReturn.count
+        )
+    }
+
+    func sponsoredPhotos(count: Int) async throws -> [Photo] {
+        []
+    }
+
+    func waitUntilRetryStarted() async {
+        await retryStarted.wait()
+    }
+
+    func completeRetry() async {
+        await retryCompletion.open()
+    }
+}
+
+private actor RateLimitedPaginationRepository: PhotosRepository {
+
+    private let firstPage: [Photo]
+    private let failure: ResourceLoadFailure
+    private(set) var requestedPages: [Int] = []
+
+    init(firstPage: [Photo], failure: ResourceLoadFailure) {
+        self.firstPage = firstPage
+        self.failure = failure
+    }
+
+    func photos(page: Int, perPage: Int) async throws -> PhotoPage {
+        requestedPages.append(page)
+
+        guard page == 1 else {
+            throw failure
+        }
+
+        return PhotoPage(
+            photos: Array(firstPage.prefix(perPage)),
+            page: page,
+            perPage: perPage,
+            total: firstPage.count + 1
+        )
+    }
+
+    func sponsoredPhotos(count: Int) async throws -> [Photo] {
+        []
+    }
+}
+
+private actor TodayAsyncGate {
+
+    private var isOpen = false
+    private var waiters: [CheckedContinuation<Void, Never>] = []
+
+    func wait() async {
+        guard !isOpen else {
+            return
+        }
+
+        await withCheckedContinuation { continuation in
+            waiters.append(continuation)
+        }
+    }
+
+    func open() {
+        guard !isOpen else {
+            return
+        }
+
+        isOpen = true
+
+        for waiter in waiters {
+            waiter.resume()
+        }
+
+        waiters.removeAll()
+    }
+}
+
+private actor FailingOrganicRepository: PhotosRepository {
+
+    private let failure: ResourceLoadFailure
+    private(set) var requestCount = 0
+
+    init(failure: ResourceLoadFailure) {
+        self.failure = failure
+    }
+
+    func photos(page: Int, perPage: Int) async throws -> PhotoPage {
+        requestCount += 1
+        throw failure
     }
 
     func sponsoredPhotos(count: Int) async throws -> [Photo] {
