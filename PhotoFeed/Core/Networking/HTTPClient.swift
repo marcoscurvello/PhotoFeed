@@ -39,9 +39,7 @@ nonisolated struct HTTPClient: Sendable {
         let response = try await response(for: request)
         let value = try JSONDecoder().decode(Response.self, from: response.data)
 
-        let headers = normalizedHeaders(from: response.httpResponse)
-
-        return HTTPResponseDecoded(value: value, headers: headers)
+        return HTTPResponseDecoded(value: value, headers: response.headers)
     }
 
     func data(for request: HTTPRequest) async throws -> Data {
@@ -49,7 +47,7 @@ nonisolated struct HTTPClient: Sendable {
         return response.data
     }
 
-    private func response(for request: HTTPRequest) async throws -> (data: Data, httpResponse: HTTPURLResponse) {
+    private func response(for request: HTTPRequest) async throws -> (data: Data, headers: [String: String]) {
         let urlRequest = try makeURLRequest(from: request)
         let (data, response) = try await session.data(for: urlRequest)
 
@@ -57,12 +55,20 @@ nonisolated struct HTTPClient: Sendable {
             throw HTTPClientError.invalidResponse
         }
 
+        let headers = normalizedHeaders(from: httpResponse)
+
         guard (200..<300).contains(httpResponse.statusCode) else {
-            let retryAfter = retryAfter(from: httpResponse, receivedAt: Date())
-            throw HTTPClientError.unacceptableStatusCode(httpResponse.statusCode, data, retryAfter: retryAfter)
+            throw HTTPClientError.unacceptableResponse(
+                HTTPFailureResponse(
+                    statusCode: httpResponse.statusCode,
+                    headers: headers,
+                    body: data,
+                    retryAfter: retryAfter(from: headers, receivedAt: Date())
+                )
+            )
         }
 
-        return (data, httpResponse)
+        return (data, headers)
     }
 
     private func makeURLRequest(from request: HTTPRequest) throws -> URLRequest {
@@ -100,8 +106,8 @@ nonisolated struct HTTPClient: Sendable {
         }
     }
 
-    private func retryAfter(from response: HTTPURLResponse, receivedAt: Date) -> Date? {
-        guard let value = response.value(forHTTPHeaderField: HeaderKeys.retryAfter)?.trimmingCharacters(in: .whitespacesAndNewlines),
+    private func retryAfter(from headers: [String: String], receivedAt: Date) -> Date? {
+        guard let value = headers[HeaderKeys.retryAfter.lowercased()]?.trimmingCharacters(in: .whitespacesAndNewlines),
               !value.isEmpty else {
             return nil
         }

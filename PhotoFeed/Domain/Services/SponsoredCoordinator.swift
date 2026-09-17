@@ -107,18 +107,21 @@ final class SponsoredCoordinator {
     }
 
     private func handle(_ error: Error) {
-        switch HTTPRequestFailureClassification(error) {
-        case .cancelled:
-            break
+        guard !(error is CancellationError) else {
+            return
+        }
 
-        case .potentiallyTransient(let serverRetryAfter):
+        let failure = (error as? ResourceLoadFailure) ?? .unknown
+
+        switch failure.retryEligibility {
+        case .immediate:
+            startCooldown(serverRetryAfter: nil)
+
+        case .after(let serverRetryAfter):
             startCooldown(serverRetryAfter: serverRetryAfter)
 
-        case .nonTransient:
+        case .unavailable:
             state = .suspended
-
-        case .unknown:
-            startCooldown(serverRetryAfter: nil)
         }
     }
 
