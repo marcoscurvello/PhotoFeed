@@ -18,6 +18,7 @@ nonisolated enum BlurHashDecoder {
         width: Int = placeholderDimension,
         height: Int = placeholderDimension
     ) -> UIImage? {
+
         guard width > 0, height > 0 else {
             return nil
         }
@@ -63,14 +64,9 @@ nonisolated enum BlurHashDecoder {
             components[index] = decodeAC(decodedACValue, maximumValue: maximumValue)
         }
 
-        let xBasis = cosineBasis(
-            outputLength: width,
-            componentCount: componentCountX
-        )
-        let yBasis = cosineBasis(
-            outputLength: height,
-            componentCount: componentCountY
-        )
+        let xBasis = cosineBasis(outputLength: width, componentCount: componentCountX)
+        let yBasis = cosineBasis(outputLength: height, componentCount: componentCountY)
+
         var pixels = [UInt8](repeating: 0, count: width * height * 4)
 
         for y in 0..<height {
