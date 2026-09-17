@@ -12,8 +12,8 @@ struct DetailUserPhotosSection: View {
     @State private var selectedViewerPhoto: Photo?
 
     let viewModel: DetailViewModel
-    let photographerName: String
     let imagePipeline: RemoteImagePipeline
+    let photographerName: String
 
     var body: some View {
         let userPhotosState = viewModel.userPhotosState
@@ -65,68 +65,35 @@ struct DetailUserPhotosSection: View {
     }
 }
 
-private struct DetailUserPhotosFailure: View {
-
-    let viewModel: DetailViewModel
-
-    var body: some View {
-        HStack(spacing: 12) {
-            Image(systemName: "photo.on.rectangle.angled")
-                .font(.title3)
-                .foregroundStyle(.secondary)
-
-            Text("More photos couldn't be loaded.")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-
-            Spacer(minLength: 8)
-
-            Button("Retry") {
-                Task {
-                    await viewModel.retryUserPhotos()
-                }
-            }
-            .buttonStyle(.bordered)
-        }
-        .padding(16)
-        .background(.quaternary.opacity(0.5))
-        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-    }
-}
-
 #Preview("Loaded user photos") {
     @Previewable @State var viewModel = DetailPreviewFixtures.makeViewModel()
 
     DetailUserPhotosSection(
         viewModel: viewModel,
-        photographerName: PhotoPreviewFixtures.detailPhoto.user.name,
-        imagePipeline: PhotoPreviewFixtures.imagePipeline
+        imagePipeline: PhotoPreviewFixtures.imagePipeline,
+        photographerName: PhotoPreviewFixtures.detailPhoto.user.name
     )
     .task { await viewModel.load() }
 }
 
 #Preview("User photos loading") {
-    @Previewable @State var viewModel = DetailPreviewFixtures.makeViewModel(
-        userPhotosBehavior: .loading
-    )
+    @Previewable @State var viewModel = DetailPreviewFixtures.makeViewModel(userPhotosBehavior: .loading)
 
     DetailUserPhotosSection(
         viewModel: viewModel,
-        photographerName: PhotoPreviewFixtures.detailPhoto.user.name,
-        imagePipeline: PhotoPreviewFixtures.imagePipeline
+        imagePipeline: PhotoPreviewFixtures.imagePipeline,
+        photographerName: PhotoPreviewFixtures.detailPhoto.user.name
     )
     .task { await viewModel.load() }
 }
 
 #Preview("User photos failure") {
-    @Previewable @State var viewModel = DetailPreviewFixtures.makeViewModel(
-        userPhotosBehavior: .failure
-    )
+    @Previewable @State var viewModel = DetailPreviewFixtures.makeViewModel(userPhotosBehavior: .failure)
 
     DetailUserPhotosSection(
         viewModel: viewModel,
-        photographerName: PhotoPreviewFixtures.detailPhoto.user.name,
-        imagePipeline: PhotoPreviewFixtures.imagePipeline
+        imagePipeline: PhotoPreviewFixtures.imagePipeline,
+        photographerName: PhotoPreviewFixtures.detailPhoto.user.name
     )
     .task { await viewModel.load() }
 }

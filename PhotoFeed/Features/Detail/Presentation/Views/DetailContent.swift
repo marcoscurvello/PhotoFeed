@@ -19,8 +19,8 @@ struct DetailContent: View {
             DetailStatisticsSection(viewModel: viewModel)
             DetailUserPhotosSection(
                 viewModel: viewModel,
-                photographerName: user.name,
-                imagePipeline: imagePipeline
+                imagePipeline: imagePipeline,
+                photographerName: user.name
             )
         }
         .padding(.top, 20)
