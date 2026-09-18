@@ -28,6 +28,7 @@ struct TodayErrorView: View {
 
         ContentUnavailableView {
             Label(presentation.title, systemImage: presentation.systemImage)
+                .symbolEffect(.appear)
         } description: {
             Text(presentation.message)
         } actions: {

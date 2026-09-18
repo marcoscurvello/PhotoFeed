@@ -11,28 +11,32 @@ struct TodayPaginationFailure: View {
 
     let failure: ResourceLoadFailure
     let isRetrying: Bool
+    let context: ResourceLoadFailurePresentation.Context
     let onRetry: () async -> Void
 
     init(
         failure: ResourceLoadFailure,
         isRetrying: Bool = false,
+        context: ResourceLoadFailurePresentation.Context = .pagination,
         onRetry: @escaping () async -> Void
     ) {
         self.failure = failure
         self.isRetrying = isRetrying
+        self.context = context
         self.onRetry = onRetry
     }
 
     var body: some View {
-        let presentation = ResourceLoadFailurePresentation(failure)
+        let presentation = ResourceLoadFailurePresentation(failure, context: context)
 
-        VStack(spacing: 12) {
-            HStack(alignment: .top, spacing: 10) {
-                Image(systemName: presentation.systemImage)
-                    .foregroundStyle(.secondary)
-                    .accessibilityHidden(true)
+        VStack(alignment: .center, spacing: 12) {
+            Image(systemName: presentation.systemImage)
+                .font(.title3)
+                .foregroundStyle(.secondary)
+                .accessibilityHidden(true)
 
-                VStack(alignment: .leading, spacing: 2) {
+            HStack(alignment: .top, spacing: 12) {
+                VStack(alignment: .center, spacing: 4) {
                     Text(presentation.title)
                         .font(.subheadline.weight(.semibold))
 
@@ -40,8 +44,6 @@ struct TodayPaginationFailure: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
-
-                Spacer(minLength: 0)
             }
 
             ResourceLoadFailureAction(

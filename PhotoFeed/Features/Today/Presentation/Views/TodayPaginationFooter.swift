@@ -26,6 +26,7 @@ struct TodayPaginationFooter: View {
                     TodayPaginationFailure(
                         failure: failure,
                         isRetrying: viewModel.state == .retrying(failure),
+                        context: viewModel.items.isEmpty ? .feed : .pagination,
                         onRetry: { await viewModel.retry() }
                     )
             }
