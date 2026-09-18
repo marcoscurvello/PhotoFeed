@@ -64,7 +64,6 @@ nonisolated enum ImgixImageURLBuilder {
     }
 
     static func url(from sourceURL: URL, applying transform: Transform) -> URL {
-
         guard let scheme = sourceURL.scheme?.lowercased(), Constants.schemes.contains(scheme), sourceURL.host != nil,
               var components = URLComponents(url: sourceURL, resolvingAgainstBaseURL: false) else {
             return sourceURL

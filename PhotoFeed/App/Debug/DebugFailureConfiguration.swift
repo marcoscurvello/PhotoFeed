@@ -72,7 +72,7 @@ nonisolated struct DebugFailureConfiguration: Sendable {
             let kind = Kind(rawValue: kindValue),
             let mode = Self.mode(from: environment[Constants.failureMode]),
             let delay = Self.duration(from: environment[Constants.failureDelay])
-                else {
+        else {
             return nil
         }
 
@@ -183,6 +183,5 @@ nonisolated struct DebugFailureConfiguration: Sendable {
 
         return .milliseconds(Int64((seconds * 1_000).rounded()))
     }
-
 }
 #endif
