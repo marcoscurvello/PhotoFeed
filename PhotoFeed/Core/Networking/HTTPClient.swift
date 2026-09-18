@@ -13,15 +13,6 @@ nonisolated struct HTTPClient: Sendable {
         static let retryAfter = "Retry-After"
     }
 
-    private enum Constants {
-        static let localeIdentifier = "en_US_POSIX"
-        static let dateFormats: [String] = [
-            "EEE',' dd MMM yyyy HH':'mm':'ss zzz",
-            "EEEE',' dd-MMM-yy HH':'mm':'ss zzz",
-            "EEE MMM d HH':'mm':'ss yyyy"
-        ]
-    }
-
     private let baseURL: URL
     private let session: URLSession
 
@@ -117,24 +108,6 @@ nonisolated struct HTTPClient: Sendable {
             return receivedAt.addingTimeInterval(TimeInterval(seconds))
         }
 
-        return formattedDate(value: value)
-    }
-
-    private func formattedDate(value: String) -> Date? {
-        for format in Constants.dateFormats {
-
-            let formatter = DateFormatter()
-            formatter.locale = Locale(identifier: Constants.localeIdentifier)
-            formatter.timeZone = TimeZone(secondsFromGMT: 0)
-            formatter.calendar = Calendar(identifier: .gregorian)
-            formatter.isLenient = false
-            formatter.dateFormat = format
-
-            if let date = formatter.date(from: value) {
-                return date
-            }
-        }
-
-        return nil
+        return HTTPDateParser.date(from: value)
     }
 }

@@ -11,6 +11,10 @@ nonisolated enum UnsplashAPIError: Error, Equatable {
     case invalidRandomPhotoCount(Int)
 }
 
+nonisolated private struct UnsplashErrorResponse: Decodable, Sendable {
+    let errors: [String]
+}
+
 nonisolated struct UnsplashAPI: Sendable {
 
     private enum HeaderKeys {
@@ -20,6 +24,7 @@ nonisolated struct UnsplashAPI: Sendable {
         static let paginationTotal = "x-total"
         static let rateLimit = "x-ratelimit-limit"
         static let rateLimitRemaining = "x-ratelimit-remaining"
+        static let responseDate = "date"
     }
 
     private let client: HTTPClient
@@ -80,6 +85,14 @@ nonisolated struct UnsplashAPI: Sendable {
         }
     }
 
+    private func request(for endpoint: UnsplashEndpoint) -> HTTPRequest {
+        HTTPRequest(
+            path: endpoint.path,
+            queryParameters: endpoint.queryParameters,
+            headers: defaultHeaders
+        )
+    }
+
     private func mappedError(from error: Error) -> Error {
         if error is CancellationError || (error as? URLError)?.code == .cancelled {
             return error
@@ -136,20 +149,23 @@ nonisolated struct UnsplashAPI: Sendable {
         RateLimitSnapshot(
             limit: response[header: HeaderKeys.rateLimit].flatMap(Int.init),
             remaining: response[header: HeaderKeys.rateLimitRemaining].flatMap(Int.init),
-            retryAfter: response.retryAfter
+            retryAfter: response.retryAfter ?? inferredHourlyReset(from: response)
         )
+    }
+
+    private func inferredHourlyReset(from response: HTTPFailureResponse) -> Date? {
+        guard let value = response[header: HeaderKeys.responseDate],
+              let responseDate = HTTPDateParser.date(from: value) else {
+            return nil
+        }
+
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = .gmt
+        return calendar.dateInterval(of: .hour, for: responseDate)?.end
     }
 
     private func isRateLimitError(_ message: String) -> Bool {
         message.range(of: "rate limit", options: .caseInsensitive) != nil
-    }
-
-    private func request(for endpoint: UnsplashEndpoint) -> HTTPRequest {
-        HTTPRequest(
-            path: endpoint.path,
-            queryParameters: endpoint.queryParameters,
-            headers: defaultHeaders
-        )
     }
 
     private var defaultHeaders: [String: String] {
@@ -158,8 +174,4 @@ nonisolated struct UnsplashAPI: Sendable {
             HeaderKeys.version: "v1"
         ]
     }
-}
-
-nonisolated private struct UnsplashErrorResponse: Decodable, Sendable {
-    let errors: [String]
 }

@@ -162,10 +162,10 @@ nonisolated struct UnsplashAPITests {
         }
     }
 
-    @Test("Rate-limited responses expose the Unsplash quota and retry deadline")
-    func mapsRateLimitedResponse() async throws {
+    @Test("An explicit Retry-After deadline takes precedence over the inferred hourly reset")
+    func prefersExplicitRetryAfterDeadline() async throws {
         let requestCounter = RequestCounter()
-        let deadline = "120"
+        let deadline = Date(timeIntervalSince1970: 1_789_742_096)
         UnsplashAPIURLProtocolStub.handler = { request in
             let url = try #require(request.url)
             let response = try #require(
@@ -176,7 +176,8 @@ nonisolated struct UnsplashAPITests {
                     headerFields: [
                         "X-RateLimit-Limit": "50",
                         "X-RateLimit-Remaining": "0",
-                        "Retry-After": deadline
+                        "Date": "Fri, 18 Sep 2026 10:59:08 GMT",
+                        "Retry-After": "Fri, 18 Sep 2026 14:34:56 GMT"
                     ]
                 )
             )
@@ -193,9 +194,30 @@ nonisolated struct UnsplashAPITests {
         } catch let ResourceLoadFailure.rateLimited(snapshot) {
             #expect(snapshot.limit == 50)
             #expect(snapshot.remaining == 0)
-            #expect(snapshot.retryAfter != nil)
+            #expect(snapshot.retryAfter == deadline)
         } catch {
             Issue.record("Unexpected error: \(error)")
+        }
+    }
+
+    @Test("An exhausted rate limit infers its reset from the next UTC hour")
+    func infersHourlyResetFromResponseDate() async {
+        let expectedReset = Date(timeIntervalSince1970: 1_789_729_200)
+        let expectedFailure = ResourceLoadFailure.rateLimited(
+            .init(limit: 50, remaining: 0, retryAfter: expectedReset)
+        )
+
+        await assertPhotosRequestMapsToFailure(expectedFailure) { request in
+            let response = try Self.response(
+                for: request,
+                statusCode: 403,
+                headers: [
+                    "X-RateLimit-Limit": "50",
+                    "X-RateLimit-Remaining": "0",
+                    "Date": "Fri, 18 Sep 2026 10:59:08 GMT"
+                ]
+            )
+            return (response, Data(#"{"errors":["Missing permissions"]}"#.utf8))
         }
     }
 
