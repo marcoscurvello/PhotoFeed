@@ -31,7 +31,7 @@ struct DetailUserPhotosFailure: View {
                 .accessibilityHidden(true)
 
             VStack(alignment: .leading, spacing: 3) {
-                Text("More photos couldn't be loaded.")
+                Text("More photos unavailable")
                     .font(.subheadline.weight(.semibold))
 
                 Text(ResourceLoadFailurePresentation(failure, context: .userPhotos).message)

@@ -10,37 +10,45 @@ import SwiftUI
 struct DetailStatisticsSection: View {
 
     let viewModel: DetailViewModel
+    let usesSharedRetryNotice: Bool
+
+    init(viewModel: DetailViewModel, usesSharedRetryNotice: Bool = false) {
+        self.viewModel = viewModel
+        self.usesSharedRetryNotice = usesSharedRetryNotice
+    }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("Statistics")
-                .font(.title2.bold())
+        if !usesSharedRetryNotice {
+            VStack(alignment: .leading, spacing: 16) {
+                Text("Statistics")
+                    .font(.title2.bold())
 
-            switch viewModel.statisticsState {
-                case .loaded(let statistics):
-                    DetailStatisticsMetrics(
-                        views: statistics.views,
-                        likes: statistics.likes,
-                        downloads: statistics.downloads
-                    )
+                switch viewModel.statisticsState {
+                    case .loaded(let statistics):
+                        DetailStatisticsMetrics(
+                            views: statistics.views,
+                            likes: statistics.likes,
+                            downloads: statistics.downloads
+                        )
 
-                case .loading:
-                    ProgressView()
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 28)
+                    case .loading:
+                        ProgressView()
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 28)
 
-                case .failed(let failure), .retrying(let failure):
-                    DetailStatisticsFailure(
-                        failure: failure,
-                        isRetrying: viewModel.statisticsState == .retrying(failure),
-                        onRetry: { await viewModel.retryStatistics() }
-                    )
+                    case .failed(let failure), .retrying(let failure):
+                        DetailStatisticsFailure(
+                            failure: failure,
+                            isRetrying: viewModel.statisticsState == .retrying(failure),
+                            onRetry: { await viewModel.retryStatistics() }
+                        )
 
-                case .idle:
-                    EmptyView()
+                    case .idle:
+                        EmptyView()
+                }
             }
+            .padding(.horizontal, 20)
         }
-        .padding(.horizontal, 20)
     }
 }
 

@@ -48,12 +48,54 @@ final class DetailViewModel {
         await fetchStatistics(retrying: failure)
     }
 
+    var sharedRetryFailure: ResourceLoadFailure? {
+        guard let userPhotosFailure = userPhotosState.sharedRetryFailure,
+              let statisticsFailure = statisticsState.sharedRetryFailure else {
+            return nil
+        }
+
+        return failureWithLatestDeadline(userPhotosFailure, statisticsFailure)
+    }
+
+    var isRetryingSharedResources: Bool {
+        userPhotosState.isRetryingSharedFailure || statisticsState.isRetryingSharedFailure
+    }
+
+    func retrySharedResources() async {
+        async let userPhotos: Void = retrySharedUserPhotos()
+        async let statistics: Void = retrySharedStatistics()
+
+        _ = await (userPhotos, statistics)
+    }
+
     private func loadUserPhotosIfNeeded() async {
         guard case .idle = userPhotosState else {
             return
         }
 
         await fetchUserPhotos()
+    }
+
+    private func retrySharedUserPhotos() async {
+        guard case .failed(let failure) = userPhotosState,
+              userPhotosState.sharedRetryFailure != nil,
+              failure.canRetry() else {
+            return
+        }
+
+        userPhotosState = .retrying(failure)
+        await fetchUserPhotos(retrying: failure)
+    }
+
+    private func retrySharedStatistics() async {
+        guard case .failed(let failure) = statisticsState,
+              statisticsState.sharedRetryFailure != nil,
+              failure.canRetry() else {
+            return
+        }
+
+        statisticsState = .retrying(failure)
+        await fetchStatistics(retrying: failure)
     }
 
     private func loadStatisticsIfNeeded() async {
@@ -124,5 +166,24 @@ final class DetailViewModel {
         }
 
         return .failed((error as? ResourceLoadFailure) ?? .unknown)
+    }
+
+    private func failureWithLatestDeadline(
+        _ first: ResourceLoadFailure,
+        _ second: ResourceLoadFailure
+    ) -> ResourceLoadFailure {
+
+        switch (first.retryEligibility, second.retryEligibility) {
+        case let (.after(firstDeadline), .after(secondDeadline)):
+            firstDeadline >= secondDeadline ? first : second
+        case (.after, _):
+            first
+        case (_, .after):
+            second
+        case (.immediate, .immediate):
+            first
+        case (.unavailable, _), (_, .unavailable):
+            preconditionFailure("Shared retry failures must be retryable.")
+        }
     }
 }

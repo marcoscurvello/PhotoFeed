@@ -14,14 +14,21 @@ struct DetailContent: View {
     let imagePipeline: RemoteImagePipeline
 
     var body: some View {
+        let usesSharedRetryNotice = viewModel.sharedRetryFailure != nil
+
         VStack(alignment: .leading, spacing: 32) {
             DetailPhotographer(user: user, imagePipeline: imagePipeline)
-            DetailStatisticsSection(viewModel: viewModel)
+            DetailStatisticsSection(
+                viewModel: viewModel,
+                usesSharedRetryNotice: usesSharedRetryNotice
+            )
             DetailUserPhotosSection(
                 viewModel: viewModel,
                 imagePipeline: imagePipeline,
-                photographerName: user.name
+                photographerName: user.name,
+                usesSharedRetryNotice: usesSharedRetryNotice
             )
+            DetailSharedRetryNotice(viewModel: viewModel)
         }
         .padding(.top, 20)
         .padding(.bottom, 32)

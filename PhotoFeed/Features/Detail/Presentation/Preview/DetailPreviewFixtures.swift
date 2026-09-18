@@ -15,6 +15,7 @@ enum DetailPreviewFixtures {
         case success
         case loading
         case failure
+        case resourceFailure(ResourceLoadFailure)
     }
 
     static func makeViewModel(
@@ -50,6 +51,8 @@ enum DetailPreviewFixtures {
                     try await Task.sleep(for: .seconds(3_600))
                 case .failure:
                     throw PreviewRepositoryError.loadFailed
+                case .resourceFailure(let failure):
+                    throw failure
             }
 
             return Array(photos.prefix(perPage))
@@ -63,6 +66,8 @@ enum DetailPreviewFixtures {
                     try await Task.sleep(for: .seconds(3_600))
                 case .failure:
                     throw PreviewRepositoryError.loadFailed
+                case .resourceFailure(let failure):
+                    throw failure
             }
 
             return statistics
