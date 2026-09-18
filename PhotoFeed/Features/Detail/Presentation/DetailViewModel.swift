@@ -8,21 +8,6 @@
 import Foundation
 import Observation
 
-nonisolated enum DetailResourceState<Value: Equatable & Sendable>: Equatable, Sendable {
-    case idle
-    case loading
-    case loaded(Value)
-    case failed
-
-    var loadedValue: Value? {
-        guard case .loaded(let value) = self else {
-            return nil
-        }
-
-        return value
-    }
-}
-
 @MainActor
 @Observable
 final class DetailViewModel {
@@ -46,11 +31,41 @@ final class DetailViewModel {
     }
 
     func retryUserPhotos() async {
-        await fetchUserPhotos()
+        guard case .failed(let failure) = userPhotosState, failure.canRetry() else {
+            return
+        }
+
+        userPhotosState = .retrying(failure)
+        await fetchUserPhotos(retrying: failure)
     }
 
     func retryStatistics() async {
-        await fetchStatistics()
+        guard case .failed(let failure) = statisticsState, failure.canRetry() else {
+            return
+        }
+
+        statisticsState = .retrying(failure)
+        await fetchStatistics(retrying: failure)
+    }
+
+    var sharedRetryFailure: ResourceLoadFailure? {
+        guard let userPhotosFailure = userPhotosState.sharedRetryFailure,
+              let statisticsFailure = statisticsState.sharedRetryFailure else {
+            return nil
+        }
+
+        return failureWithLatestDeadline(userPhotosFailure, statisticsFailure)
+    }
+
+    var isRetryingSharedResources: Bool {
+        userPhotosState.isRetryingSharedFailure || statisticsState.isRetryingSharedFailure
+    }
+
+    func retrySharedResources() async {
+        async let userPhotos: Void = retrySharedUserPhotos()
+        async let statistics: Void = retrySharedStatistics()
+
+        _ = await (userPhotos, statistics)
     }
 
     private func loadUserPhotosIfNeeded() async {
@@ -61,6 +76,28 @@ final class DetailViewModel {
         await fetchUserPhotos()
     }
 
+    private func retrySharedUserPhotos() async {
+        guard case .failed(let failure) = userPhotosState,
+              userPhotosState.sharedRetryFailure != nil,
+              failure.canRetry() else {
+            return
+        }
+
+        userPhotosState = .retrying(failure)
+        await fetchUserPhotos(retrying: failure)
+    }
+
+    private func retrySharedStatistics() async {
+        guard case .failed(let failure) = statisticsState,
+              statisticsState.sharedRetryFailure != nil,
+              failure.canRetry() else {
+            return
+        }
+
+        statisticsState = .retrying(failure)
+        await fetchStatistics(retrying: failure)
+    }
+
     private func loadStatisticsIfNeeded() async {
         guard case .idle = statisticsState else {
             return
@@ -69,12 +106,14 @@ final class DetailViewModel {
         await fetchStatistics()
     }
 
-    private func fetchUserPhotos() async {
-        guard userPhotosState != .loading else {
-            return
-        }
+    private func fetchUserPhotos(retrying failure: ResourceLoadFailure? = nil) async {
+        if failure == nil {
+            guard userPhotosState != .loading else {
+                return
+            }
 
-        userPhotosState = .loading
+            userPhotosState = .loading
+        }
 
         do {
             let userPhotos = try await repository.userPhotos(
@@ -84,44 +123,67 @@ final class DetailViewModel {
             )
 
             guard !Task.isCancelled else {
-                userPhotosState = .idle
+                userPhotosState = failure.map(DetailResourceState.failed) ?? .idle
                 return
             }
 
             userPhotosState = .loaded(userPhotos.filter { $0.id != photo.id })
         } catch {
-            userPhotosState = state(for: error)
+            userPhotosState = state(for: error, retrying: failure)
         }
     }
 
-    private func fetchStatistics() async {
-        guard statisticsState != .loading else {
-            return
-        }
+    private func fetchStatistics(retrying failure: ResourceLoadFailure? = nil) async {
+        if failure == nil {
+            guard statisticsState != .loading else {
+                return
+            }
 
-        statisticsState = .loading
+            statisticsState = .loading
+        }
 
         do {
             let statistics = try await repository.statistics(photoID: photo.id)
 
             guard !Task.isCancelled else {
-                statisticsState = .idle
+                statisticsState = failure.map(DetailResourceState.failed) ?? .idle
                 return
             }
 
             statisticsState = .loaded(statistics)
         } catch {
-            statisticsState = state(for: error)
+            statisticsState = state(for: error, retrying: failure)
         }
     }
 
-    private func state<Value: Equatable & Sendable>(for error: Error) -> DetailResourceState<Value> {
-        switch HTTPRequestFailureClassification(error) {
-        case .cancelled:
-            .idle
+    private func state<Value: Equatable & Sendable>(
+        for error: Error,
+        retrying failure: ResourceLoadFailure?
+    ) -> DetailResourceState<Value> {
 
-        case .potentiallyTransient, .nonTransient, .unknown:
-            .failed
+        guard !(error is CancellationError || (error as? URLError)?.code == .cancelled) else {
+            return failure.map(DetailResourceState.failed) ?? .idle
+        }
+
+        return .failed((error as? ResourceLoadFailure) ?? .unknown)
+    }
+
+    private func failureWithLatestDeadline(
+        _ first: ResourceLoadFailure,
+        _ second: ResourceLoadFailure
+    ) -> ResourceLoadFailure {
+
+        switch (first.retryEligibility, second.retryEligibility) {
+        case let (.after(firstDeadline), .after(secondDeadline)):
+            firstDeadline >= secondDeadline ? first : second
+        case (.after, _):
+            first
+        case (_, .after):
+            second
+        case (.immediate, .immediate):
+            first
+        case (.unavailable, _), (_, .unavailable):
+            preconditionFailure("Shared retry failures must be retryable.")
         }
     }
 }

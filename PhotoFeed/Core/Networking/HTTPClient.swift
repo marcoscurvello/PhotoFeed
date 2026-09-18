@@ -13,15 +13,6 @@ nonisolated struct HTTPClient: Sendable {
         static let retryAfter = "Retry-After"
     }
 
-    private enum Constants {
-        static let localeIdentifier = "en_US_POSIX"
-        static let dateFormats: [String] = [
-            "EEE',' dd MMM yyyy HH':'mm':'ss zzz",
-            "EEEE',' dd-MMM-yy HH':'mm':'ss zzz",
-            "EEE MMM d HH':'mm':'ss yyyy"
-        ]
-    }
-
     private let baseURL: URL
     private let session: URLSession
 
@@ -39,9 +30,7 @@ nonisolated struct HTTPClient: Sendable {
         let response = try await response(for: request)
         let value = try JSONDecoder().decode(Response.self, from: response.data)
 
-        let headers = normalizedHeaders(from: response.httpResponse)
-
-        return HTTPResponseDecoded(value: value, headers: headers)
+        return HTTPResponseDecoded(value: value, headers: response.headers)
     }
 
     func data(for request: HTTPRequest) async throws -> Data {
@@ -49,7 +38,7 @@ nonisolated struct HTTPClient: Sendable {
         return response.data
     }
 
-    private func response(for request: HTTPRequest) async throws -> (data: Data, httpResponse: HTTPURLResponse) {
+    private func response(for request: HTTPRequest) async throws -> (data: Data, headers: [String: String]) {
         let urlRequest = try makeURLRequest(from: request)
         let (data, response) = try await session.data(for: urlRequest)
 
@@ -57,12 +46,20 @@ nonisolated struct HTTPClient: Sendable {
             throw HTTPClientError.invalidResponse
         }
 
+        let headers = normalizedHeaders(from: httpResponse)
+
         guard (200..<300).contains(httpResponse.statusCode) else {
-            let retryAfter = retryAfter(from: httpResponse, receivedAt: Date())
-            throw HTTPClientError.unacceptableStatusCode(httpResponse.statusCode, data, retryAfter: retryAfter)
+            throw HTTPClientError.unacceptableResponse(
+                HTTPFailureResponse(
+                    statusCode: httpResponse.statusCode,
+                    headers: headers,
+                    body: data,
+                    retryAfter: retryAfter(from: headers, receivedAt: Date())
+                )
+            )
         }
 
-        return (data, httpResponse)
+        return (data, headers)
     }
 
     private func makeURLRequest(from request: HTTPRequest) throws -> URLRequest {
@@ -72,8 +69,8 @@ nonisolated struct HTTPClient: Sendable {
             throw HTTPClientError.invalidURL
         }
 
-        if !request.queryItems.isEmpty {
-            components.queryItems = request.queryItems
+        if !request.queryParameters.isEmpty {
+            components.queryItems = request.queryParameters.map(\.urlQueryItem)
         }
 
         guard let url = components.url else {
@@ -100,8 +97,8 @@ nonisolated struct HTTPClient: Sendable {
         }
     }
 
-    private func retryAfter(from response: HTTPURLResponse, receivedAt: Date) -> Date? {
-        guard let value = response.value(forHTTPHeaderField: HeaderKeys.retryAfter)?.trimmingCharacters(in: .whitespacesAndNewlines),
+    private func retryAfter(from headers: [String: String], receivedAt: Date) -> Date? {
+        guard let value = headers[HeaderKeys.retryAfter.lowercased()]?.trimmingCharacters(in: .whitespacesAndNewlines),
               !value.isEmpty else {
             return nil
         }
@@ -111,24 +108,6 @@ nonisolated struct HTTPClient: Sendable {
             return receivedAt.addingTimeInterval(TimeInterval(seconds))
         }
 
-        return formattedDate(value: value)
-    }
-
-    private func formattedDate(value: String) -> Date? {
-        for format in Constants.dateFormats {
-
-            let formatter = DateFormatter()
-            formatter.locale = Locale(identifier: Constants.localeIdentifier)
-            formatter.timeZone = TimeZone(secondsFromGMT: 0)
-            formatter.calendar = Calendar(identifier: .gregorian)
-            formatter.isLenient = false
-            formatter.dateFormat = format
-
-            if let date = formatter.date(from: value) {
-                return date
-            }
-        }
-
-        return nil
+        return HTTPDateParser.date(from: value)
     }
 }

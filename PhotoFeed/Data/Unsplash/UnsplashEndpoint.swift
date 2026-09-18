@@ -7,6 +7,38 @@
 
 import Foundation
 
+nonisolated private enum UnsplashQueryName: String {
+    case page
+    case perPage = "per_page"
+    case count
+    case resolution
+    case quantity
+}
+
+nonisolated private extension HTTPQueryParameter {
+
+    static func page(_ value: Int) -> Self {
+        Self(name: UnsplashQueryName.page, value: String(value))
+    }
+
+    static func perPage(_ value: Int) -> Self {
+        Self(name: UnsplashQueryName.perPage, value: String(value))
+    }
+
+    static func count(_ value: Int) -> Self {
+        Self(name: UnsplashQueryName.count, value: String(value))
+    }
+
+    static let dailyResolution = Self(
+        name: UnsplashQueryName.resolution,
+        value: "days"
+    )
+
+    static func quantity(_ value: Int) -> Self {
+        Self(name: UnsplashQueryName.quantity, value: String(value))
+    }
+}
+
 nonisolated enum UnsplashEndpoint: Equatable, Sendable {
 
     case photos(page: Int, perPage: Int)
@@ -23,29 +55,29 @@ nonisolated enum UnsplashEndpoint: Equatable, Sendable {
         }
     }
 
-    var queryItems: [URLQueryItem] {
+    var queryParameters: [HTTPQueryParameter] {
         switch self {
         case .photos(let page, let perPage):
             [
-                URLQueryItem(name: "page", value: page.description),
-                URLQueryItem(name: "per_page", value: perPage.description)
+                .page(page),
+                .perPage(perPage)
             ]
 
         case .randomPhotos(let count):
             [
-                URLQueryItem(name: "count", value: count.description)
+                .count(count)
             ]
 
         case .userPhotos(_, let page, let perPage):
             [
-                URLQueryItem(name: "page", value: page.description),
-                URLQueryItem(name: "per_page", value: perPage.description)
+                .page(page),
+                .perPage(perPage)
             ]
 
         case .photoStatistics:
             [
-                URLQueryItem(name: "resolution", value: "days"),
-                URLQueryItem(name: "quantity", value: "30")
+                .dailyResolution,
+                .quantity(30)
             ]
         }
     }

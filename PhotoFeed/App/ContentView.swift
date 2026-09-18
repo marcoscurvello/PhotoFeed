@@ -24,28 +24,23 @@ struct ContentView: View {
                 selectedPhoto = photo
             }
             .navigationDestination(item: $selectedPhoto) { photo in
-                detailDestination(for: photo)
-            }
-        }
-    }
-
-    @ViewBuilder
-    private func detailDestination(for photo: Photo) -> some View {
-        let detailView = DetailView(
-            photo: photo,
-            viewModel: dependencies.makeDetailViewModel(for: photo),
-            imagePipeline: dependencies.imagePipeline
-        )
-
-        if #available(iOS 18.0, *) {
-            detailView.navigationTransition(
-                .zoom(
-                    sourceID: photo.id,
-                    in: detailTransitionNamespace
+                let detailView = DetailView(
+                    photo: photo,
+                    viewModel: dependencies.makeDetailViewModel(for: photo),
+                    imagePipeline: dependencies.imagePipeline
                 )
-            )
-        } else {
-            detailView
+
+                if #available(iOS 18.0, *) {
+                    detailView.navigationTransition(
+                        .zoom(
+                            sourceID: photo.id,
+                            in: detailTransitionNamespace
+                        )
+                    )
+                } else {
+                    detailView
+                }
+            }
         }
     }
 }

@@ -35,10 +35,16 @@ struct PhotoFeedApp: App {
     private static func makeDependencies() throws -> AppDependencies {
         switch environment {
         case .fixture:
-            AppDependencies.fixture()
+#if DEBUG
+            if let configuration = DebugFailureConfiguration() {
+                return AppDependencies.fixture(failure: configuration)
+            }
+#endif
+
+            return AppDependencies.fixture()
 
         case .live:
-            try AppDependencies.live()
+            return try AppDependencies.live()
         }
     }
 }

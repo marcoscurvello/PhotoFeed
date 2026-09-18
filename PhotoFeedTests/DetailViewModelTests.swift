@@ -26,7 +26,7 @@ struct DetailViewModelTests {
 
         #expect(
             viewModel.userPhotosState
-                == .loaded(fixture.userPhotos.filter { $0.id != fixture.photo.id })
+            == .loaded(fixture.userPhotos.filter { $0.id != fixture.photo.id })
         )
         #expect(viewModel.statisticsState == .loaded(fixture.statistics))
     }
@@ -62,7 +62,7 @@ struct DetailViewModelTests {
 
         #expect(
             viewModel.userPhotosState
-                == .loaded(fixture.userPhotos.filter { $0.id != fixture.photo.id })
+            == .loaded(fixture.userPhotos.filter { $0.id != fixture.photo.id })
         )
         #expect(viewModel.statisticsState == .loaded(fixture.statistics))
     }
@@ -81,9 +81,9 @@ struct DetailViewModelTests {
 
         #expect(
             viewModel.userPhotosState
-                == .loaded(fixture.userPhotos.filter { $0.id != fixture.photo.id })
+            == .loaded(fixture.userPhotos.filter { $0.id != fixture.photo.id })
         )
-        #expect(viewModel.statisticsState == .failed)
+        #expect(viewModel.statisticsState == .failed(.unknown))
     }
 
     @Test("User photos failure does not prevent statistics from loading")
@@ -98,7 +98,7 @@ struct DetailViewModelTests {
 
         await viewModel.load()
 
-        #expect(viewModel.userPhotosState == .failed)
+        #expect(viewModel.userPhotosState == .failed(.unknown))
         #expect(viewModel.statisticsState == .loaded(fixture.statistics))
     }
 
@@ -118,7 +118,7 @@ struct DetailViewModelTests {
 
         #expect(counts.userPhotos == 1)
         #expect(counts.statistics == 1)
-        #expect(viewModel.statisticsState == .failed)
+        #expect(viewModel.statisticsState == .failed(.unknown))
 
         await repository.setStatisticsResult(.success(fixture.statistics))
         await viewModel.retryStatistics()
@@ -146,7 +146,7 @@ struct DetailViewModelTests {
 
         #expect(counts.userPhotos == 1)
         #expect(counts.statistics == 1)
-        #expect(viewModel.userPhotosState == .failed)
+        #expect(viewModel.userPhotosState == .failed(.unknown))
 
         await repository.setUserPhotosResult(.success(fixture.userPhotos))
         await viewModel.retryUserPhotos()
@@ -157,8 +157,34 @@ struct DetailViewModelTests {
         #expect(counts.statistics == 1)
         #expect(
             viewModel.userPhotosState
-                == .loaded(fixture.userPhotos.filter { $0.id != fixture.photo.id })
+            == .loaded(fixture.userPhotos.filter { $0.id != fixture.photo.id })
         )
+    }
+
+    @Test("Retrying statistics retains its failure while the request is in flight")
+    @MainActor
+    func retryShowsRetryingStateUntilStatisticsCompletes() async throws {
+        let fixture = try await makeFixture()
+        let repository = SuspendedRetryingStatisticsRepository(
+            userPhotos: fixture.userPhotos,
+            statistics: fixture.statistics
+        )
+        let viewModel = DetailViewModel(photo: fixture.photo, repository: repository)
+
+        await viewModel.load()
+        #expect(viewModel.statisticsState == .failed(.offline))
+
+        let retryTask = Task {
+            await viewModel.retryStatistics()
+        }
+
+        await repository.waitUntilRetryStarted()
+        #expect(viewModel.statisticsState == .retrying(.offline))
+
+        await repository.completeRetry()
+        await retryTask.value
+
+        #expect(viewModel.statisticsState == .loaded(fixture.statistics))
     }
 
     @Test("The selected photo is excluded before user photos are stored")
@@ -175,7 +201,7 @@ struct DetailViewModelTests {
 
         #expect(
             viewModel.userPhotosState
-                == .loaded(fixture.userPhotos.filter { $0.id != fixture.photo.id })
+            == .loaded(fixture.userPhotos.filter { $0.id != fixture.photo.id })
         )
     }
 
@@ -202,8 +228,95 @@ struct DetailViewModelTests {
         #expect(counts.statistics == 1)
         #expect(
             viewModel.userPhotosState
-                == .loaded(fixture.userPhotos.filter { $0.id != fixture.photo.id })
+            == .loaded(fixture.userPhotos.filter { $0.id != fixture.photo.id })
         )
+        #expect(viewModel.statisticsState == .loaded(fixture.statistics))
+    }
+
+    @Test("Retry actions do not repeat unavailable resource requests")
+    @MainActor
+    func retryRejectsUnavailableFailures() async throws {
+        let fixture = try await makeFixture()
+        let repository = UnavailableDetailRepository()
+        let viewModel = DetailViewModel(photo: fixture.photo, repository: repository)
+
+        await viewModel.load()
+
+        #expect(viewModel.userPhotosState == .failed(.accessDenied))
+        #expect(viewModel.statisticsState == .failed(.accessDenied))
+
+        await viewModel.retryUserPhotos()
+        await viewModel.retryStatistics()
+
+        let counts = await repository.callCounts()
+        #expect(counts.userPhotos == 1)
+        #expect(counts.statistics == 1)
+    }
+
+    @Test("The latest deferred failure is selected for the shared retry action")
+    @MainActor
+    func selectsLatestDeferredFailure() async throws {
+        let fixture = try await makeFixture()
+        let earlierDeadline = Date(timeIntervalSinceReferenceDate: 1_000)
+        let laterDeadline = Date(timeIntervalSinceReferenceDate: 2_000)
+        let userPhotosFailure = ResourceLoadFailure.rateLimited(
+            .init(limit: 50, remaining: 0, retryAfter: earlierDeadline)
+        )
+        let statisticsFailure = ResourceLoadFailure.serviceUnavailable(retryAfter: laterDeadline)
+        let repository = TestPhotoDetailRepository(
+            userPhotosResult: .failure(.resourceLoadFailure(userPhotosFailure)),
+            statisticsResult: .failure(.resourceLoadFailure(statisticsFailure))
+        )
+        let viewModel = DetailViewModel(photo: fixture.photo, repository: repository)
+
+        await viewModel.load()
+
+        #expect(viewModel.sharedRetryFailure == statisticsFailure)
+        #expect(!viewModel.isRetryingSharedResources)
+
+        await repository.setUserPhotosResult(.success(fixture.userPhotos))
+        await repository.setStatisticsResult(.success(fixture.statistics))
+        await viewModel.retrySharedResources()
+
+        let counts = await repository.callCounts()
+
+        #expect(counts.userPhotos == 2)
+        #expect(counts.statistics == 2)
+        #expect(
+            viewModel.userPhotosState
+            == .loaded(fixture.userPhotos.filter { $0.id != fixture.photo.id })
+        )
+        #expect(viewModel.statisticsState == .loaded(fixture.statistics))
+    }
+
+    @Test("A rate-limited resource retains its local retry when the other resource loads")
+    @MainActor
+    func rateLimitedResourceDoesNotCreateASharedRetry() async throws {
+        let fixture = try await makeFixture()
+        let rateLimitedFailure = ResourceLoadFailure.rateLimited(
+            .init(limit: 50, remaining: 0, retryAfter: nil)
+        )
+        let repository = TestPhotoDetailRepository(
+            userPhotosResult: .success(fixture.userPhotos),
+            statisticsResult: .failure(.resourceLoadFailure(rateLimitedFailure))
+        )
+        let viewModel = DetailViewModel(photo: fixture.photo, repository: repository)
+
+        await viewModel.load()
+        #expect(
+            viewModel.userPhotosState
+            == .loaded(fixture.userPhotos.filter { $0.id != fixture.photo.id })
+        )
+        #expect(viewModel.statisticsState == .failed(rateLimitedFailure))
+        #expect(viewModel.sharedRetryFailure == nil)
+
+        await repository.setStatisticsResult(.success(fixture.statistics))
+        await viewModel.retryStatistics()
+
+        let counts = await repository.callCounts()
+
+        #expect(counts.userPhotos == 1)
+        #expect(counts.statistics == 2)
         #expect(viewModel.statisticsState == .loaded(fixture.statistics))
     }
 }
@@ -241,6 +354,7 @@ private actor TestPhotoDetailRepository: PhotoDetailRepository {
 
     enum TestError: Error {
         case expected
+        case resourceLoadFailure(ResourceLoadFailure)
     }
 
     private var userPhotosResult: Result<[Photo], TestError>
@@ -273,7 +387,7 @@ private actor TestPhotoDetailRepository: PhotoDetailRepository {
             await userPhotosGate.wait()
         }
 
-        return try userPhotosResult.get()
+        return try resultValue(userPhotosResult)
     }
 
     func statistics(photoID: Photo.ID) async throws -> PhotoStatistics {
@@ -284,7 +398,7 @@ private actor TestPhotoDetailRepository: PhotoDetailRepository {
             await statisticsGate.wait()
         }
 
-        return try statisticsResult.get()
+        return try resultValue(statisticsResult)
     }
 
     func setUserPhotosResult(_ result: Result<[Photo], TestError>) {
@@ -311,6 +425,14 @@ private actor TestPhotoDetailRepository: PhotoDetailRepository {
 
         bothRequestsStarted.continuation.yield(())
         bothRequestsStarted.continuation.finish()
+    }
+
+    private func resultValue<Value>(_ result: Result<Value, TestError>) throws -> Value {
+        do {
+            return try result.get()
+        } catch TestError.resourceLoadFailure(let failure) {
+            throw failure
+        }
     }
 }
 
@@ -344,6 +466,65 @@ private actor CancellationThenSuccessDetailRepository: PhotoDetailRepository {
 
     func callCounts() -> (userPhotos: Int, statistics: Int) {
         (userPhotosCallCount, statisticsCallCount)
+    }
+}
+
+private actor UnavailableDetailRepository: PhotoDetailRepository {
+
+    private var userPhotosCallCount = 0
+    private var statisticsCallCount = 0
+
+    func userPhotos(username: String, page: Int, perPage: Int) async throws -> [Photo] {
+        userPhotosCallCount += 1
+        throw ResourceLoadFailure.accessDenied
+    }
+
+    func statistics(photoID: Photo.ID) async throws -> PhotoStatistics {
+        statisticsCallCount += 1
+        throw ResourceLoadFailure.accessDenied
+    }
+
+    func callCounts() -> (userPhotos: Int, statistics: Int) {
+        (userPhotosCallCount, statisticsCallCount)
+    }
+}
+
+private actor SuspendedRetryingStatisticsRepository: PhotoDetailRepository {
+
+    private let userPhotosToReturn: [Photo]
+    private let statisticsToReturn: PhotoStatistics
+    private var statisticsAttempt = 0
+    private let retryStarted = AsyncGate()
+    private let retryCompletion = AsyncGate()
+
+    init(userPhotos: [Photo], statistics: PhotoStatistics) {
+        userPhotosToReturn = userPhotos
+        statisticsToReturn = statistics
+    }
+
+    func userPhotos(username: String, page: Int, perPage: Int) async throws -> [Photo] {
+        userPhotosToReturn
+    }
+
+    func statistics(photoID: Photo.ID) async throws -> PhotoStatistics {
+        statisticsAttempt += 1
+
+        guard statisticsAttempt > 1 else {
+            throw ResourceLoadFailure.offline
+        }
+
+        await retryStarted.open()
+        await retryCompletion.wait()
+
+        return statisticsToReturn
+    }
+
+    func waitUntilRetryStarted() async {
+        await retryStarted.wait()
+    }
+
+    func completeRetry() async {
+        await retryCompletion.open()
     }
 }
 

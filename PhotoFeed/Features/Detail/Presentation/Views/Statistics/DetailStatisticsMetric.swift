@@ -1,5 +1,5 @@
 //
-//  DetailMetric.swift
+//  DetailStatisticsMetric.swift
 //  PhotoFeed
 //
 //  Created by Marcos Curvello on 15/09/2026.
@@ -7,7 +7,7 @@
 
 import SwiftUI
 
-struct DetailMetric: View {
+struct DetailStatisticsMetric: View {
 
     let title: LocalizedStringResource
     let systemImage: String
@@ -45,7 +45,7 @@ struct DetailMetric: View {
 }
 
 #Preview {
-    DetailMetric(
+    DetailStatisticsMetric(
         title: "Views",
         systemImage: "eye",
         metric: .init(total: 482_901, change: 14_201, periodDays: 30)

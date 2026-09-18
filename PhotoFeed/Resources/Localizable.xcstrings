@@ -106,37 +106,37 @@
         }
       }
     },
-    "Check your connection and try loading the latest photos again." : {
-      "comment" : "Generic explanation shown when the main photo feed could not be loaded.",
+    "Check your internet connection and try again." : {
+      "comment" : "Explanation shown when loading photos fails because the device is offline.",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Check your connection and try loading the latest photos again."
+            "value" : "Check your internet connection and try again."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Comprueba tu conexión e intenta cargar de nuevo las fotos más recientes."
+            "value" : "Comprueba tu conexión a internet e inténtalo de nuevo."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Vérifiez votre connexion et réessayez de charger les dernières photos."
+            "value" : "Vérifiez votre connexion Internet et réessayez."
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "接続を確認して、最新の写真をもう一度読み込んでください。"
+            "value" : "インターネット接続を確認して、もう一度お試しください。"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "请检查网络连接，然后再次尝试加载最新照片。"
+            "value" : "请检查互联网连接后重试。"
           }
         }
       }
@@ -172,6 +172,41 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "关闭"
+          }
+        }
+      }
+    },
+    "Details temporarily unavailable" : {
+      "comment" : "Heading shown in photo detail when secondary content cannot load because the hourly request limit was reached.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Details temporarily unavailable"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Detalles no disponibles temporalmente"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Détails temporairement indisponibles"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "詳細は一時的に利用できません"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "详细信息暂时无法显示"
           }
         }
       }
@@ -246,6 +281,111 @@
         }
       }
     },
+    "Hourly limit of %lld requests reached." : {
+      "comment" : "Explanation shown when Unsplash has rate limited requests. The placeholder is the hourly request limit reported by the API.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hourly limit of %lld requests reached."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Límite horario de %lld solicitudes alcanzado."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Limite horaire de %lld requêtes atteinte."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1時間あたり%lld件の上限に達しました。"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已达到每小时 %lld 次请求的上限。"
+          }
+        }
+      }
+    },
+    "Hourly limit reached." : {
+      "comment" : "Explanation shown when Unsplash has rate limited requests.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hourly limit reached."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Límite horario alcanzado."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Limite horaire atteinte."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1時間あたりの上限に達しました。"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已达到每小时上限。"
+          }
+        }
+      }
+    },
+    "Hourly limit reached. Please try again later." : {
+      "comment" : "Explanation shown when Unsplash has rate limited requests without reporting an exact retry time.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hourly limit reached. Please try again later."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Límite horario alcanzado. Inténtalo de nuevo más tarde."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Limite horaire atteinte. Veuillez réessayer plus tard."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1時間あたりの上限に達しました。しばらくしてからもう一度お試しください。"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已达到每小时上限。请稍后重试。"
+          }
+        }
+      }
+    },
     "Likes" : {
       "comment" : "Title of the photo likes statistic.",
       "localizations" : {
@@ -316,37 +456,110 @@
         }
       }
     },
-    "More photos couldn't be loaded." : {
-      "comment" : "Message shown when additional photos by the photographer could not be loaded.",
+    "More photos are no longer available." : {
+
+    },
+    "More photos by this photographer are no longer available." : {
+      "comment" : "Explanation shown when the photographer's additional photos cannot be found.",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "More photos couldn't be loaded."
+            "value" : "More photos by this photographer are no longer available."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "No se pudieron cargar más fotos."
+            "value" : "Ya no hay más fotos disponibles de este fotógrafo."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Impossible de charger plus de photos."
+            "value" : "Les autres photos de ce photographe ne sont plus disponibles."
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "他の写真を読み込めませんでした。"
+            "value" : "このフォトグラファーの他の写真は利用できなくなりました。"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "无法加载更多照片。"
+            "value" : "这位摄影师的更多照片已不可用。"
+          }
+        }
+      }
+    },
+    "More photos temporarily unavailable" : {
+      "comment" : "Heading shown in the feed when more photos cannot load because the hourly request limit was reached.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "More photos temporarily unavailable"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Más fotos no disponibles temporalmente"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "D’autres photos temporairement indisponibles"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "他の写真は一時的に利用できません"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "更多照片暂时无法显示"
+          }
+        }
+      }
+    },
+    "More photos unavailable" : {
+      "comment" : "Heading shown when more photos by the photographer could not be loaded.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "More photos unavailable"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Más fotos no disponibles"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Autres photos indisponibles"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "他の写真を利用できません"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "更多照片不可用"
           }
         }
       }
@@ -456,6 +669,181 @@
         }
       }
     },
+    "Photo service unavailable" : {
+      "comment" : "Heading shown when the photo service cannot provide content.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Photo service unavailable"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Servicio de fotos no disponible"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Service photo indisponible"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "写真サービスを利用できません"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "照片服务不可用"
+          }
+        }
+      }
+    },
+    "Photos can’t be loaded with the current service access." : {
+      "comment" : "Explanation shown when the photo service denies access.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Photos can’t be loaded with the current service access."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se pueden cargar fotos con el acceso actual al servicio."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Les photos ne peuvent pas être chargées avec l’accès actuel au service."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "現在のサービスアクセスでは写真を読み込めません。"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "当前服务访问权限无法加载照片。"
+          }
+        }
+      }
+    },
+    "Photos temporarily unavailable" : {
+      "comment" : "Heading shown when the initial photo feed cannot load because the hourly request limit was reached.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Photos temporarily unavailable"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fotos no disponibles temporalmente"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Photos temporairement indisponibles"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "写真は一時的に利用できません"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "照片暂时无法显示"
+          }
+        }
+      }
+    },
+    "Photos unavailable" : {
+      "comment" : "Heading shown when a requested photo resource is unavailable.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Photos unavailable"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fotos no disponibles"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Photos indisponibles"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "写真を利用できません"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "照片不可用"
+          }
+        }
+      }
+    },
+    "Please try again." : {
+      "comment" : "Generic instruction for a recoverable photo loading failure.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Please try again."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Inténtalo de nuevo."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Veuillez réessayer."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "もう一度お試しください。"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请重试。"
+          }
+        }
+      }
+    },
     "Retry" : {
       "comment" : "Button that retries loading content after an error.",
       "localizations" : {
@@ -487,6 +875,111 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "重试"
+          }
+        }
+      }
+    },
+    "Retry available in %@" : {
+      "comment" : "Countdown showing when the retry action becomes available. The placeholder is a timer duration formatted as minutes and seconds.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Retry available in %@"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Podrás reintentar en %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nouvel essai possible dans %@"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "再試行まであと%@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 后可重试"
+          }
+        }
+      }
+    },
+    "Retrying" : {
+      "comment" : "Accessibility label for the disabled retry control while its request is in progress.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Retrying"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reintentando"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nouvelle tentative"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "再試行中"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在重试"
+          }
+        }
+      }
+    },
+    "Some details are no longer available for this photo." : {
+      "comment" : "Explanation shown when some secondary information cannot be found for the selected photo.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Some details are no longer available for this photo."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Algunos detalles de esta foto ya no están disponibles."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Certains détails de cette photo ne sont plus disponibles."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "この写真の一部の詳細は利用できなくなりました。"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此照片的部分详细信息已不可用。"
           }
         }
       }
@@ -631,6 +1124,41 @@
         }
       }
     },
+    "Statistics are no longer available for this photo." : {
+      "comment" : "Explanation shown when statistics cannot be found for the selected photo.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Statistics are no longer available for this photo."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Las estadísticas de esta foto ya no están disponibles."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Les statistiques de cette photo ne sont plus disponibles."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "この写真の統計は利用できなくなりました。"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此照片的统计信息已不可用。"
+          }
+        }
+      }
+    },
     "Statistics unavailable" : {
       "comment" : "Heading shown when photo statistics could not be loaded.",
       "localizations" : {
@@ -662,6 +1190,146 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "统计数据不可用"
+          }
+        }
+      }
+    },
+    "The photo service returned an unexpected response." : {
+      "comment" : "Explanation shown when the photo service response is invalid.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The photo service returned an unexpected response."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El servicio de fotos devolvió una respuesta inesperada."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le service photo a renvoyé une réponse inattendue."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "写真サービスから予期しない応答が返されました。"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "照片服务返回了意外响应。"
+          }
+        }
+      }
+    },
+    "The photo service took too long to respond." : {
+      "comment" : "Explanation shown when a photo request times out.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The photo service took too long to respond."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El servicio de fotos tardó demasiado en responder."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le service photo a mis trop de temps à répondre."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "写真サービスの応答に時間がかかりすぎました。"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "照片服务响应时间过长。"
+          }
+        }
+      }
+    },
+    "The request timed out" : {
+      "comment" : "Heading shown when a photo request times out.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The request timed out"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La solicitud agotó el tiempo de espera"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La demande a expiré"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "リクエストがタイムアウトしました"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请求超时"
+          }
+        }
+      }
+    },
+    "The requested photos are no longer available." : {
+      "comment" : "Explanation shown when requested feed photos cannot be found.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The requested photos are no longer available."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Las fotos solicitadas ya no están disponibles."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Les photos demandées ne sont plus disponibles."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "リクエストされた写真は利用できなくなりました。"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请求的照片已不可用。"
           }
         }
       }
@@ -736,6 +1404,41 @@
         }
       }
     },
+    "Unsplash is temporarily unavailable." : {
+      "comment" : "Explanation shown when the Unsplash service is temporarily unavailable.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unsplash is temporarily unavailable."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unsplash no está disponible temporalmente."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unsplash est temporairement indisponible."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unsplash は一時的に利用できません。"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unsplash 暂时不可用。"
+          }
+        }
+      }
+    },
     "Views" : {
       "comment" : "Title of the photo views statistic.",
       "localizations" : {
@@ -771,37 +1474,37 @@
         }
       }
     },
-    "We couldn't load statistics for this photo." : {
-      "comment" : "Explanation shown when photo statistics could not be loaded.",
+    "You’re offline" : {
+      "comment" : "Heading shown when the device is offline.",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "We couldn't load statistics for this photo."
+            "value" : "You’re offline"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "No se pudieron cargar las estadísticas de esta foto."
+            "value" : "No tienes conexión"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Impossible de charger les statistiques de cette photo."
+            "value" : "Vous êtes hors ligne"
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "この写真の統計を読み込めませんでした。"
+            "value" : "オフラインです"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "无法加载这张照片的统计数据。"
+            "value" : "您已离线"
           }
         }
       }

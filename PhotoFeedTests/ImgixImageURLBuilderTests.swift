@@ -15,15 +15,18 @@ struct ImgixImageURLBuilderTests {
     @Test("Preserves source tracking parameters and replaces image transforms")
     func preservesTrackingParametersAndReplacesTransforms() throws {
         let sourceURL = try #require(URL(string: "https://images.unsplash.com/photo?ixid=identifier&ixlib=rb-4.1.0&crop=entropy&cs=tinysrgb&w=1080&dpr=1&fit=crop&fm=webp&q=20"))
-
-        let url = ImgixImageURLBuilder.url(
-            from: sourceURL,
-            width: 600,
-            devicePixelRatio: 3
+        let transform = try #require(
+            ImgixImageURLBuilder.Transform(
+                width: 600,
+                devicePixelRatio: .x3
+            )
         )
-        let queryItems = try #require(URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems)
 
+        let url = ImgixImageURLBuilder.url(from: sourceURL, applying: transform)
+
+        let queryItems = try #require(URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems)
         #expect(queryItems.map(\.name) == ["ixid", "ixlib", "crop", "cs", "w", "dpr", "fit", "fm", "q"])
+
         let values = Dictionary(uniqueKeysWithValues: queryItems.compactMap { item in
             item.value.map { (item.name, $0) }
         })
@@ -40,29 +43,48 @@ struct ImgixImageURLBuilderTests {
         ])
     }
 
-    @Test(arguments: [(0, 1), (160, 0), (160, -1)])
-    func returnsOriginalURLForInvalidConfiguration(_ configuration: (Int, Int)) throws {
-        let sourceURL = try #require(URL(string: "https://images.unsplash.com/photo?ixid=identifier"))
-
-        #expect(
-            ImgixImageURLBuilder.url(
-                from: sourceURL,
-                width: configuration.0,
-                devicePixelRatio: configuration.1
-            ) == sourceURL
+    @Test(arguments: [
+        (0, 80),
+        (-1, 80),
+        (160, -1),
+        (160, 101)
+    ])
+    func rejectsInvalidTransform(_ configuration: (width: Int, quality: Int)) {
+        let transform = ImgixImageURLBuilder.Transform(
+            width: configuration.width,
+            devicePixelRatio: .x2,
+            quality: configuration.quality
         )
+
+        #expect(transform == nil)
     }
 
-    @Test("Returns the original URL for a non-web source")
-    func returnsOriginalURLForNonWebSource() throws {
-        let sourceURL = try #require(URL(string: "file:///photo.jpg"))
-
-        #expect(
-            ImgixImageURLBuilder.url(
-                from: sourceURL,
+    @Test(
+        "Returns the original URL for an unsupported source",
+        arguments: ["file:///photo.jpg", "https:///photo.jpg"]
+    )
+    func returnsOriginalURLForUnsupportedSource(_ source: String) throws {
+        let sourceURL = try #require(URL(string: source))
+        let transform = try #require(
+            ImgixImageURLBuilder.Transform(
                 width: 160,
-                devicePixelRatio: 2
-            ) == sourceURL
+                devicePixelRatio: .x2
+            )
         )
+
+        let url = ImgixImageURLBuilder.url(from: sourceURL, applying: transform)
+
+        #expect(url == sourceURL)
+    }
+
+    @Test("Accepts the complete Imgix quality range", arguments: [0, 100])
+    func acceptsQualityBoundary(_ quality: Int) {
+        let transform = ImgixImageURLBuilder.Transform(
+            width: 160,
+            devicePixelRatio: .x2,
+            quality: quality
+        )
+
+        #expect(transform != nil)
     }
 }

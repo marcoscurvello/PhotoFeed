@@ -1,0 +1,64 @@
+//
+//  FaultInjectingPhotoRepository.swift
+//  PhotoFeed
+//
+//  Created by Marcos Curvello on 17/09/2026.
+//
+
+#if DEBUG
+import Foundation
+
+final actor FaultInjectingPhotoRepository<Base: PhotosRepository & PhotoDetailRepository>: PhotosRepository, PhotoDetailRepository {
+
+    private let base: Base
+    private let configuration: DebugFailureConfiguration
+    private var injectedTargets = Set<DebugFailureConfiguration.Target>()
+
+    init(base: Base, configuration: DebugFailureConfiguration) {
+        self.base = base
+        self.configuration = configuration
+    }
+
+    func photos(page: Int, perPage: Int) async throws -> PhotoPage {
+        try await intercept(.todayPage(page))
+        return try await base.photos(page: page, perPage: perPage)
+    }
+
+    func sponsoredPhotos(count: Int) async throws -> [Photo] {
+        try await intercept(.sponsored)
+        return try await base.sponsoredPhotos(count: count)
+    }
+
+    func userPhotos(username: String, page: Int, perPage: Int) async throws -> [Photo] {
+        try await intercept(.userPhotos)
+        return try await base.userPhotos(username: username, page: page, perPage: perPage)
+    }
+
+    func statistics(photoID: Photo.ID) async throws -> PhotoStatistics {
+        try await intercept(.statistics)
+        return try await base.statistics(photoID: photoID)
+    }
+
+    private func intercept(_ target: DebugFailureConfiguration.Target) async throws {
+        guard configuration.targets.contains(target) else {
+            return
+        }
+
+        if configuration.delay > .zero {
+            try await Task.sleep(for: configuration.delay)
+        }
+
+        switch configuration.mode {
+        case .always:
+            throw configuration.failure()
+
+        case .once:
+            guard injectedTargets.insert(target).inserted else {
+                return
+            }
+
+            throw configuration.failure()
+        }
+    }
+}
+#endif

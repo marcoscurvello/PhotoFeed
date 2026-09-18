@@ -9,30 +9,54 @@ import SwiftUI
 
 struct TodayErrorView: View {
 
+    let failure: ResourceLoadFailure
+    let isRetrying: Bool
     let onRetry: () async -> Void
 
+    init(
+        failure: ResourceLoadFailure,
+        isRetrying: Bool = false,
+        onRetry: @escaping () async -> Void
+    ) {
+        self.failure = failure
+        self.isRetrying = isRetrying
+        self.onRetry = onRetry
+    }
+
     var body: some View {
+        let presentation = ResourceLoadFailurePresentation(failure)
+
         ContentUnavailableView {
-            Label("Unable to load photos", systemImage: "wifi.exclamationmark")
+            Label(presentation.title, systemImage: presentation.systemImage)
+                .symbolEffect(.appear)
         } description: {
-            Text("Check your connection and try loading the latest photos again.")
+            Text(presentation.message)
         } actions: {
-            Button("Retry") {
-                Task {
-                    await onRetry()
-                }
-            }
-            .buttonStyle(.borderedProminent)
+            ResourceLoadFailureAction(
+                failure: failure,
+                isRetrying: isRetrying,
+                prominent: true,
+                onRetry: onRetry
+            )
             .padding(.vertical, 24)
         }
         .frame(maxWidth: .infinity)
+        .containerRelativeFrame(.vertical)
         .padding(.horizontal, 20)
-        .padding(.top, 60)
     }
 
 }
 #Preview("Feed error") {
     TodayErrorView(
+        failure: .offline,
+        onRetry: {}
+    )
+}
+
+#Preview("Retrying feed error") {
+    TodayErrorView(
+        failure: .offline,
+        isRetrying: true,
         onRetry: {}
     )
 }

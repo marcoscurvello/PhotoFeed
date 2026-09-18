@@ -18,7 +18,7 @@ struct UnsplashEndpointTests {
 
         #expect(endpoint.path == "photos")
         #expect(
-            endpoint.queryItems == [
+            endpoint.queryParameters.map(\.urlQueryItem) == [
                 URLQueryItem(name: "page", value: "2"),
                 URLQueryItem(name: "per_page", value: "10")
             ]
@@ -31,7 +31,7 @@ struct UnsplashEndpointTests {
 
         #expect(endpoint.path == "photos/random")
         #expect(
-            endpoint.queryItems == [
+            endpoint.queryParameters.map(\.urlQueryItem) == [
                 URLQueryItem(name: "count", value: "3")
             ]
         )
@@ -47,7 +47,7 @@ struct UnsplashEndpointTests {
 
         #expect(endpoint.path == "users/morpheus/photos")
         #expect(
-            endpoint.queryItems == [
+            endpoint.queryParameters.map(\.urlQueryItem) == [
                 URLQueryItem(name: "page", value: "2"),
                 URLQueryItem(name: "per_page", value: "10")
             ]
@@ -60,7 +60,7 @@ struct UnsplashEndpointTests {
 
         #expect(endpoint.path == "photos/pqaA_SBjgEs/statistics")
         #expect(
-            endpoint.queryItems == [
+            endpoint.queryParameters.map(\.urlQueryItem) == [
                 URLQueryItem(name: "resolution", value: "days"),
                 URLQueryItem(name: "quantity", value: "30")
             ]

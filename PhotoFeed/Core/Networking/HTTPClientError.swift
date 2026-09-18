@@ -5,10 +5,8 @@
 //  Created by Marcos Curvello on 08/09/2026.
 //
 
-import Foundation
-
-nonisolated enum HTTPClientError: Error {
+nonisolated enum HTTPClientError: Error, Equatable {
     case invalidURL
     case invalidResponse
-    case unacceptableStatusCode(Int, Data, retryAfter: Date? = nil)
+    case unacceptableResponse(HTTPFailureResponse)
 }
