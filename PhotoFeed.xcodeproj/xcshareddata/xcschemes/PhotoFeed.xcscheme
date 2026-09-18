@@ -88,6 +88,28 @@
             ReferencedContainer = "container:PhotoFeed.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
+      <EnvironmentVariables>
+         <EnvironmentVariable
+            key = "PHOTOFEED_FAILURE_TARGETS"
+            value = "today-page-2,statistics"
+            isEnabled = "NO">
+         </EnvironmentVariable>
+         <EnvironmentVariable
+            key = "PHOTOFEED_FAILURE_KIND"
+            value = "rate-limited"
+            isEnabled = "NO">
+         </EnvironmentVariable>
+         <EnvironmentVariable
+            key = "PHOTOFEED_FAILURE_MODE"
+            value = "once"
+            isEnabled = "NO">
+         </EnvironmentVariable>
+         <EnvironmentVariable
+            key = "PHOTOFEED_RETRY_AFTER"
+            value = "15"
+            isEnabled = "NO">
+         </EnvironmentVariable>
+      </EnvironmentVariables>
    </LaunchAction>
    <ProfileAction
       buildConfiguration = "Release"

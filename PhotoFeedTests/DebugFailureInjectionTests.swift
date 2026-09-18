@@ -17,7 +17,7 @@ struct DebugFailureInjectionTests {
     func parsesConfigurationAndMapsItsFailure() {
         let configuration = DebugFailureConfiguration(
             environment: [
-                "PHOTOFEED_FAILURE_TARGET": "today-page-2",
+                "PHOTOFEED_FAILURE_TARGETS": "today-page-2",
                 "PHOTOFEED_FAILURE_KIND": "rate-limited",
                 "PHOTOFEED_FAILURE_MODE": "once",
                 "PHOTOFEED_FAILURE_DELAY": "1.5",
@@ -26,13 +26,43 @@ struct DebugFailureInjectionTests {
         )
         let now = Date(timeIntervalSince1970: 100)
 
-        #expect(configuration?.target == .todayPage(2))
+        #expect(configuration?.targets == [.todayPage(2)])
         #expect(configuration?.kind == .rateLimited)
         #expect(configuration?.mode == .once)
         #expect(configuration?.delay == .milliseconds(1_500))
         #expect(
             configuration?.failure(now: now)
                 == .rateLimited(.init(limit: 50, remaining: 0, retryAfter: now.addingTimeInterval(10)))
+        )
+    }
+
+    @Test("Configuration parses multiple targets and ignores duplicates")
+    func parsesMultipleTargets() {
+        let configuration = DebugFailureConfiguration(
+            environment: [
+                "PHOTOFEED_FAILURE_TARGETS": "statistics, today-page-2,statistics",
+                "PHOTOFEED_FAILURE_KIND": "rate-limited"
+            ]
+        )
+
+        #expect(configuration?.targets == [.statistics, .todayPage(2)])
+    }
+
+    @Test("Configuration can schedule a rate-limit retry at the next UTC hour")
+    func schedulesRateLimitRetryAtNextHour() {
+        let configuration = DebugFailureConfiguration(
+            environment: [
+                "PHOTOFEED_FAILURE_TARGETS": "today-page-2",
+                "PHOTOFEED_FAILURE_KIND": "rate-limited",
+                "PHOTOFEED_RETRY_AFTER": "next-hour"
+            ]
+        )
+        let responseDate = Date(timeIntervalSince1970: 1_789_729_148)
+        let expectedReset = Date(timeIntervalSince1970: 1_789_729_200)
+
+        #expect(
+            configuration?.failure(now: responseDate)
+                == .rateLimited(.init(limit: 50, remaining: 0, retryAfter: expectedReset))
         )
     }
 
@@ -52,7 +82,7 @@ struct DebugFailureInjectionTests {
         for (kind, expectedFailure) in expectedFailures {
             let configuration = DebugFailureConfiguration(
                 environment: [
-                    "PHOTOFEED_FAILURE_TARGET": "sponsored",
+                    "PHOTOFEED_FAILURE_TARGETS": "sponsored",
                     "PHOTOFEED_FAILURE_KIND": kind
                 ]
             )
@@ -66,7 +96,7 @@ struct DebugFailureInjectionTests {
         #expect(
             DebugFailureConfiguration(
                 environment: [
-                    "PHOTOFEED_FAILURE_TARGET": "today-page-0",
+                    "PHOTOFEED_FAILURE_TARGETS": "today-page-0",
                     "PHOTOFEED_FAILURE_KIND": "offline"
                 ]
             ) == nil
@@ -74,21 +104,46 @@ struct DebugFailureInjectionTests {
         #expect(
             DebugFailureConfiguration(
                 environment: [
-                    "PHOTOFEED_FAILURE_TARGET": "sponsored",
+                    "PHOTOFEED_FAILURE_TARGETS": "statistics,unknown",
+                    "PHOTOFEED_FAILURE_KIND": "offline"
+                ]
+            ) == nil
+        )
+        #expect(
+            DebugFailureConfiguration(
+                environment: [
+                    "PHOTOFEED_FAILURE_TARGETS": "statistics,",
+                    "PHOTOFEED_FAILURE_KIND": "offline"
+                ]
+            ) == nil
+        )
+        #expect(
+            DebugFailureConfiguration(
+                environment: [
+                    "PHOTOFEED_FAILURE_TARGETS": "sponsored",
                     "PHOTOFEED_FAILURE_KIND": "offline",
                     "PHOTOFEED_FAILURE_DELAY": "-1"
+                ]
+            ) == nil
+        )
+        #expect(
+            DebugFailureConfiguration(
+                environment: [
+                    "PHOTOFEED_FAILURE_TARGETS": "statistics",
+                    "PHOTOFEED_FAILURE_KIND": "service-unavailable",
+                    "PHOTOFEED_RETRY_AFTER": "next-hour"
                 ]
             ) == nil
         )
 
         let configuration = DebugFailureConfiguration(
             environment: [
-                "PHOTOFEED_FAILURE_TARGET": "statistics",
+                "PHOTOFEED_FAILURE_TARGETS": "statistics",
                 "PHOTOFEED_FAILURE_KIND": "service-unavailable"
             ]
         )
 
-        #expect(configuration?.target == .statistics)
+        #expect(configuration?.targets == [.statistics])
         #expect(configuration?.mode == .always)
         #expect(configuration?.delay == .zero)
         #expect(configuration?.failure() == .serviceUnavailable(retryAfter: nil))
@@ -98,7 +153,7 @@ struct DebugFailureInjectionTests {
     func delegatesNonmatchingOperations() async throws {
         let repository = RecordingPhotoRepository()
         let injector = try makeInjector(
-            target: "statistics",
+            targets: "statistics",
             kind: "offline",
             base: repository
         )
@@ -113,7 +168,7 @@ struct DebugFailureInjectionTests {
     func injectsConfiguredTodayPage() async throws {
         let repository = RecordingPhotoRepository()
         let injector = try makeInjector(
-            target: "today-page-2",
+            targets: "today-page-2",
             kind: "rate-limited",
             base: repository
         )
@@ -135,7 +190,7 @@ struct DebugFailureInjectionTests {
     func injectsFailureOnce() async throws {
         let repository = RecordingPhotoRepository()
         let injector = try makeInjector(
-            target: "sponsored",
+            targets: "sponsored",
             kind: "offline",
             mode: "once",
             base: repository
@@ -151,11 +206,36 @@ struct DebugFailureInjectionTests {
         #expect(await repository.callCounts().sponsored == 1)
     }
 
+    @Test("Once mode fails once for each configured target")
+    func injectsFailureOncePerTarget() async throws {
+        let repository = RecordingPhotoRepository()
+        let injector = try makeInjector(
+            targets: "statistics,user-photos",
+            kind: "offline",
+            mode: "once",
+            base: repository
+        )
+
+        await #expect(throws: ResourceLoadFailure.offline) {
+            try await injector.statistics(photoID: testPhoto.id)
+        }
+        await #expect(throws: ResourceLoadFailure.offline) {
+            try await injector.userPhotos(username: "user", page: 1, perPage: 10)
+        }
+
+        _ = try await injector.statistics(photoID: testPhoto.id)
+        _ = try await injector.userPhotos(username: "user", page: 1, perPage: 10)
+
+        let counts = await repository.callCounts()
+        #expect(counts.statistics == 1)
+        #expect(counts.userPhotos == 1)
+    }
+
     @Test("Always mode fails every matching operation without delegation")
     func injectsFailureEveryTime() async throws {
         let repository = RecordingPhotoRepository()
         let injector = try makeInjector(
-            target: "user-photos",
+            targets: "user-photos",
             kind: "not-found",
             base: repository
         )
@@ -174,7 +254,7 @@ struct DebugFailureInjectionTests {
     func injectsStatisticsFailure() async throws {
         let repository = RecordingPhotoRepository()
         let injector = try makeInjector(
-            target: "statistics",
+            targets: "statistics",
             kind: "service-unavailable",
             base: repository
         )
@@ -187,14 +267,14 @@ struct DebugFailureInjectionTests {
     }
 
     private func makeInjector<Base>(
-        target: String,
+        targets: String,
         kind: String,
         mode: String? = nil,
         base: Base
     ) throws -> FaultInjectingPhotoRepository<Base>
     where Base: PhotosRepository & PhotoDetailRepository {
         var environment = [
-            "PHOTOFEED_FAILURE_TARGET": target,
+            "PHOTOFEED_FAILURE_TARGETS": targets,
             "PHOTOFEED_FAILURE_KIND": kind
         ]
         environment["PHOTOFEED_FAILURE_MODE"] = mode

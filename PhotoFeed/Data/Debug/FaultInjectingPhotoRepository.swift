@@ -8,12 +8,11 @@
 #if DEBUG
 import Foundation
 
-actor FaultInjectingPhotoRepository<Base>: PhotosRepository, PhotoDetailRepository
-where Base: PhotosRepository & PhotoDetailRepository {
+actor FaultInjectingPhotoRepository<Base: PhotosRepository & PhotoDetailRepository>: PhotosRepository, PhotoDetailRepository {
 
     private let base: Base
     private let configuration: DebugFailureConfiguration
-    private var hasInjectedFailure = false
+    private var injectedTargets = Set<DebugFailureConfiguration.Target>()
 
     init(base: Base, configuration: DebugFailureConfiguration) {
         self.base = base
@@ -41,7 +40,7 @@ where Base: PhotosRepository & PhotoDetailRepository {
     }
 
     private func intercept(_ target: DebugFailureConfiguration.Target) async throws {
-        guard target == configuration.target else {
+        guard configuration.targets.contains(target) else {
             return
         }
 
@@ -54,11 +53,10 @@ where Base: PhotosRepository & PhotoDetailRepository {
             throw configuration.failure()
 
         case .once:
-            guard !hasInjectedFailure else {
+            guard injectedTargets.insert(target).inserted else {
                 return
             }
 
-            hasInjectedFailure = true
             throw configuration.failure()
         }
     }

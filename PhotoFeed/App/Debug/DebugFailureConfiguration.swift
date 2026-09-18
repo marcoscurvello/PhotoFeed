@@ -10,7 +10,33 @@ import Foundation
 
 nonisolated struct DebugFailureConfiguration: Sendable {
 
-    enum Target: Equatable, Sendable {
+    private enum Constants {
+        static let failureTargets = "PHOTOFEED_FAILURE_TARGETS"
+        static let failureKind = "PHOTOFEED_FAILURE_KIND"
+        static let failureMode = "PHOTOFEED_FAILURE_MODE"
+        static let failureDelay = "PHOTOFEED_FAILURE_DELAY"
+        static let retryAfter = "PHOTOFEED_RETRY_AFTER"
+        static let nextHour = "next-hour"
+    }
+
+    private enum RetryDeadline: Sendable {
+        case after(TimeInterval)
+        case nextHour
+
+        func date(after date: Date) -> Date? {
+            switch self {
+                case .after(let interval):
+                    return date.addingTimeInterval(interval)
+
+                case .nextHour:
+                    var calendar = Calendar(identifier: .gregorian)
+                    calendar.timeZone = .gmt
+                    return calendar.dateInterval(of: .hour, for: date)?.end
+            }
+        }
+    }
+
+    enum Target: Hashable, Sendable {
         case todayPage(Int)
         case sponsored
         case statistics
@@ -33,42 +59,49 @@ nonisolated struct DebugFailureConfiguration: Sendable {
         case always
     }
 
-    let target: Target
+    let targets: Set<Target>
     let kind: Kind
     let mode: Mode
     let delay: Duration
-    let retryAfter: TimeInterval?
+    private let retryDeadline: RetryDeadline?
 
     init?(environment: [String: String] = ProcessInfo.processInfo.environment) {
         guard
-            let target = Self.target(from: environment["PHOTOFEED_FAILURE_TARGET"]),
-            let kindValue = environment["PHOTOFEED_FAILURE_KIND"],
+            let targets = Self.targets(from: environment[Constants.failureTargets]),
+            let kindValue = environment[Constants.failureKind],
             let kind = Kind(rawValue: kindValue),
-            let mode = Self.mode(from: environment["PHOTOFEED_FAILURE_MODE"]),
-            let delay = Self.duration(from: environment["PHOTOFEED_FAILURE_DELAY"])
+            let mode = Self.mode(from: environment[Constants.failureMode]),
+            let delay = Self.duration(from: environment[Constants.failureDelay])
                 else {
             return nil
         }
 
-        let retryAfter: TimeInterval?
-        if let value = environment["PHOTOFEED_RETRY_AFTER"] {
-            guard let seconds = TimeInterval(value), seconds.isFinite, seconds >= 0 else {
-                return nil
+        let retryDeadline: RetryDeadline?
+        if let value = environment[Constants.retryAfter] {
+            if value == Constants.nextHour {
+                guard kind == .rateLimited else {
+                    return nil
+                }
+                retryDeadline = .nextHour
+            } else {
+                guard let seconds = TimeInterval(value), seconds.isFinite, seconds >= 0 else {
+                    return nil
+                }
+                retryDeadline = .after(seconds)
             }
-            retryAfter = seconds
         } else {
-            retryAfter = nil
+            retryDeadline = nil
         }
 
-        self.target = target
+        self.targets = targets
         self.kind = kind
         self.mode = mode
         self.delay = delay
-        self.retryAfter = retryAfter
+        self.retryDeadline = retryDeadline
     }
 
     func failure(now: Date = .now) -> ResourceLoadFailure {
-        let deadline = retryAfter.map(now.addingTimeInterval)
+        let deadline = retryDeadline.flatMap { $0.date(after: now) }
 
         return switch kind {
             case .offline:
@@ -90,27 +123,41 @@ nonisolated struct DebugFailureConfiguration: Sendable {
         }
     }
 
-    private static func target(from value: String?) -> Target? {
+    private static func targets(from value: String?) -> Set<Target>? {
         guard let value else {
             return nil
         }
 
+        let values = value.split(separator: ",", omittingEmptySubsequences: false)
+        var targets = Set<Target>()
+
+        for value in values {
+            let normalizedValue = String(value).trimmingCharacters(in: .whitespacesAndNewlines)
+
+            guard !normalizedValue.isEmpty,
+                  let target = target(from: normalizedValue) else {
+                return nil
+            }
+
+            targets.insert(target)
+        }
+
+        return targets.isEmpty ? nil : targets
+    }
+
+    private static func target(from value: String) -> Target? {
         let todayPagePrefix = "today-page-"
+
         if value.hasPrefix(todayPagePrefix),
-           let page = Int(value.dropFirst(todayPagePrefix.count)),
-           page > 0 {
+           let page = Int(value.dropFirst(todayPagePrefix.count)), page > 0 {
             return .todayPage(page)
         }
 
         return switch value {
-            case "sponsored":
-                    .sponsored
-            case "statistics":
-                    .statistics
-            case "user-photos":
-                    .userPhotos
-            default:
-                nil
+            case "sponsored": .sponsored
+            case "statistics": .statistics
+            case "user-photos": .userPhotos
+            default: nil
         }
     }
 
