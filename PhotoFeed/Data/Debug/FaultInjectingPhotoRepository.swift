@@ -8,7 +8,7 @@
 #if DEBUG
 import Foundation
 
-actor FaultInjectingPhotoRepository<Base: PhotosRepository & PhotoDetailRepository>: PhotosRepository, PhotoDetailRepository {
+final actor FaultInjectingPhotoRepository<Base: PhotosRepository & PhotoDetailRepository>: PhotosRepository, PhotoDetailRepository {
 
     private let base: Base
     private let configuration: DebugFailureConfiguration
