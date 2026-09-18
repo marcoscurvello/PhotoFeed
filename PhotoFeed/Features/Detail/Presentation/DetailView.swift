@@ -21,13 +21,29 @@ struct DetailView: View {
     }
 
     var body: some View {
-        DetailScrollView(
-            photo: photo,
-            viewModel: viewModel,
-            imagePipeline: imagePipeline
-        )
+        let scrollView = ScrollView {
+            VStack(alignment: .leading, spacing: 0) {
+                DetailHero(photo: photo, imagePipeline: imagePipeline)
+                DetailContent(
+                    user: photo.user,
+                    viewModel: viewModel,
+                    imagePipeline: imagePipeline
+                )
+            }
+        }
+        .ignoresSafeArea(.container, edges: .top)
+        .scrollIndicators(.hidden)
+        .toolbarBackground(.hidden, for: .navigationBar)
+        .toolbarColorScheme(.dark, for: .navigationBar)
         .task {
             await viewModel.load()
+        }
+
+        if #available(iOS 26.0, *) {
+            scrollView
+                .scrollEdgeEffectStyle(.soft, for: .top)
+        } else {
+            scrollView
         }
     }
 }
