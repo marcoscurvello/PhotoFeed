@@ -12,6 +12,19 @@ import Testing
 @Suite("Resource load failures")
 struct ResourceLoadFailureTests {
 
+    @Test("Rate-limit copy distinguishes an initial feed from pagination")
+    func rateLimitCopyUsesItsFeedContext() {
+        let failure = ResourceLoadFailure.rateLimited(
+            .init(limit: 50, remaining: 0, retryAfter: nil)
+        )
+
+        let initialFeed = ResourceLoadFailurePresentation(failure, context: .feed)
+        let pagination = ResourceLoadFailurePresentation(failure, context: .pagination)
+
+        #expect(initialFeed.title == LocalizedStringResource("Photos temporarily unavailable"))
+        #expect(pagination.title == LocalizedStringResource("More photos temporarily unavailable"))
+    }
+
     @Test("A rate limit without a server deadline is immediately retryable")
     func rateLimitWithoutDeadlineIsImmediatelyRetryable() {
         #expect(ResourceLoadFailure.rateLimited(.init(limit: 50, remaining: 0, retryAfter: nil)).canRetry())

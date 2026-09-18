@@ -11,6 +11,8 @@ struct ResourceLoadFailurePresentation {
 
     enum Context {
         case feed
+        case pagination
+        case detail
         case statistics
         case userPhotos
     }
@@ -30,13 +32,23 @@ struct ResourceLoadFailurePresentation {
             message = "The photo service took too long to respond."
             systemImage = "clock.badge.exclamationmark"
         case .rateLimited(let snapshot):
-            title = "Photo requests are temporarily limited"
+            switch context {
+            case .feed:
+                title = "Photos temporarily unavailable"
+            case .pagination, .userPhotos:
+                title = "More photos temporarily unavailable"
+            case .detail:
+                title = "Details temporarily unavailable"
+            case .statistics:
+                title = "Statistics unavailable"
+            }
+
             if let limit = snapshot.limit {
-                message = "The hourly photo request limit of \(limit) has been reached."
+                message = "Hourly limit of \(limit) requests reached."
             } else {
                 message = snapshot.retryAfter == nil
-                    ? "The hourly photo request limit has been reached. Please try again later."
-                    : "The hourly photo request limit has been reached."
+                    ? "Hourly limit reached. Please try again later."
+                    : "Hourly limit reached."
             }
             systemImage = "hourglass"
         case .serviceUnavailable:
@@ -52,6 +64,10 @@ struct ResourceLoadFailurePresentation {
             switch context {
             case .feed:
                 message = "The requested photos are no longer available."
+            case .pagination:
+                message = "More photos are no longer available."
+            case .detail:
+                message = "Some details are no longer available for this photo."
             case .statistics:
                 message = "Statistics are no longer available for this photo."
             case .userPhotos:

@@ -32,18 +32,18 @@ struct ResourceLoadFailureAction: View {
     var body: some View {
         Group {
             switch failure.retryEligibility {
-            case .immediate:
-                retryButton
-
-            case .after(let retryAfter):
-                if isRetrying || reachedRetryDeadline == retryAfter || retryAfter <= .now {
+                case .immediate:
                     retryButton
-                } else {
-                    delayedRetryMessage(retryAfter: retryAfter)
-                }
 
-            case .unavailable:
-                EmptyView()
+                case .after(let retryAfter):
+                    if isRetrying || reachedRetryDeadline == retryAfter || retryAfter <= .now {
+                        retryButton
+                    } else {
+                        delayedRetryMessage(retryAfter: retryAfter)
+                    }
+
+                case .unavailable:
+                    EmptyView()
             }
         }
         .task(id: failure) {
@@ -87,8 +87,9 @@ struct ResourceLoadFailureAction: View {
     }
 
     private func delayedRetryMessage(retryAfter: Date) -> some View {
-        Text("Try again after \(retryAfter, format: .dateTime.hour().minute())")
+        Text("Retry available in \(Text(timerInterval: .now...retryAfter, countsDown: true, showsHours: false))")
             .font(.caption)
+            .monospacedDigit()
             .foregroundStyle(.secondary)
             .task(id: retryAfter) {
                 let delay = max(retryAfter.timeIntervalSinceNow, 0)
@@ -107,4 +108,40 @@ struct ResourceLoadFailureAction: View {
                 }
             }
     }
+}
+
+#Preview("Retry") {
+    ResourceLoadFailureAction(
+        failure: .offline,
+        onRetry: {}
+    )
+    .padding()
+}
+
+#Preview("Prominent retry") {
+    ResourceLoadFailureAction(
+        failure: .offline,
+        prominent: true,
+        onRetry: {}
+    )
+    .padding()
+}
+
+#Preview("Retrying") {
+    ResourceLoadFailureAction(
+        failure: .offline,
+        isRetrying: true,
+        onRetry: {}
+    )
+    .padding()
+}
+
+#Preview("Delayed retry") {
+    ResourceLoadFailureAction(
+        failure: .rateLimited(
+            .init(limit: 50, remaining: 0, retryAfter: .now.addingTimeInterval(300))
+        ),
+        onRetry: {}
+    )
+    .padding()
 }
