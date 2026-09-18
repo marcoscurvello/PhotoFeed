@@ -25,11 +25,27 @@ struct DetailStatisticsSection: View {
 
                 switch viewModel.statisticsState {
                     case .loaded(let statistics):
-                        DetailStatisticsMetrics(
-                            views: statistics.views,
-                            likes: statistics.likes,
-                            downloads: statistics.downloads
-                        )
+                        HStack(spacing: 12) {
+                            DetailStatisticsMetric(
+                                title: "Views",
+                                systemImage: "eye",
+                                metric: statistics.views
+                            )
+
+                            if let likes = statistics.likes {
+                                DetailStatisticsMetric(
+                                    title: "Likes",
+                                    systemImage: "heart",
+                                    metric: likes
+                                )
+                            }
+
+                            DetailStatisticsMetric(
+                                title: "Downloads",
+                                systemImage: "arrow.down",
+                                metric: statistics.downloads
+                            )
+                        }
 
                     case .loading:
                         ProgressView()
