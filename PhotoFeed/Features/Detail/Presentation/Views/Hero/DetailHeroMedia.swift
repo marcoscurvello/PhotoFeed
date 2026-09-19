@@ -62,7 +62,7 @@ struct DetailHeroMedia: View {
             imageURL: PhotoPreviewFixtures.detailPhoto.imageURLs.regular,
             imagePipeline: PhotoPreviewFixtures.imagePipeline,
             blurHash: PhotoPreviewFixtures.detailPhoto.blurHash,
-            photoAspectRatio: CGFloat(PhotoPreviewFixtures.detailPhoto.aspectRatio),
+            photoAspectRatio: PhotoPreviewFixtures.detailPhoto.aspectRatio ?? 0.82,
             contentMode: .fit
         )
         .frame(height: 460)

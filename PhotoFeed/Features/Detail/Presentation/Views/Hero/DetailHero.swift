@@ -9,6 +9,11 @@ import SwiftUI
 
 struct DetailHero: View {
 
+    private enum Constants {
+        static let defaultAspectRatio = 0.82
+        static let aspectRatioThreshold = 1.2
+    }
+
     private enum Presentation {
         case natural
         case immersiveLandscape
@@ -40,21 +45,19 @@ struct DetailHero: View {
     }
 
     private var photoAspectRatio: CGFloat {
-        guard photo.width > 0, photo.height > 0 else {
-            return 0.82
-        }
-
-        return CGFloat(photo.width) / CGFloat(photo.height)
+        photo.aspectRatio ?? Constants.defaultAspectRatio
     }
 
     private var presentation: Presentation {
-        photoAspectRatio > 1.2 ? .immersiveLandscape : .natural
+        photoAspectRatio > Constants.aspectRatioThreshold
+        ? .immersiveLandscape
+        : .natural
     }
 
     private var heroAspectRatio: CGFloat {
         switch presentation {
             case .natural: photoAspectRatio
-            case .immersiveLandscape: 0.82
+            case .immersiveLandscape: Constants.defaultAspectRatio
         }
     }
 
