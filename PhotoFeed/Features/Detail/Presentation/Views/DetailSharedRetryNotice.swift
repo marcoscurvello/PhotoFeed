@@ -49,6 +49,7 @@ struct DetailSharedRetryNotice: View {
     }
 }
 
+#if DEBUG
 #Preview {
     @Previewable @State var viewModel = {
         let retryAfter = Date.now.addingTimeInterval(300)
@@ -68,3 +69,4 @@ struct DetailSharedRetryNotice: View {
     }
     .task { await viewModel.load() }
 }
+#endif

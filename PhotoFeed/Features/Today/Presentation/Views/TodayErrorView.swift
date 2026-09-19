@@ -44,8 +44,9 @@ struct TodayErrorView: View {
         .containerRelativeFrame(.vertical)
         .padding(.horizontal, 20)
     }
-
 }
+
+#if DEBUG
 #Preview("Feed error") {
     TodayErrorView(
         failure: .offline,
@@ -60,3 +61,4 @@ struct TodayErrorView: View {
         onRetry: {}
     )
 }
+#endif

@@ -43,9 +43,11 @@ struct DetailPhotographer: View {
     }
 }
 
+#if DEBUG
 #Preview {
     DetailPhotographer(
         user: PhotoPreviewFixtures.detailPhoto.user,
         imagePipeline: PhotoPreviewFixtures.imagePipeline
     )
 }
+#endif

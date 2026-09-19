@@ -66,6 +66,7 @@ struct DetailUserPhoto: View {
     }
 }
 
+#if DEBUG
 #Preview {
     DetailUserPhoto(
         photo: PhotoPreviewFixtures.detailUserPhotos[1],
@@ -74,3 +75,4 @@ struct DetailUserPhoto: View {
     )
     .padding()
 }
+#endif

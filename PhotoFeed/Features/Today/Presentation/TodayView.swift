@@ -35,6 +35,7 @@ struct TodayView: View {
     }
 }
 
+#if DEBUG
 #Preview("Loaded feed") {
     @Previewable @State var viewModel = TodayPreviewFixtures.makeViewModel()
     @Previewable @Namespace var transitionNamespace
@@ -88,3 +89,4 @@ struct TodayView: View {
         onSelect: { _ in }
     )
 }
+#endif

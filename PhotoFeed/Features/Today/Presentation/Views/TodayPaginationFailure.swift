@@ -58,6 +58,7 @@ struct TodayPaginationFailure: View {
     }
 }
 
+#if DEBUG
 #Preview("Rate limited pagination") {
     TodayPaginationFailure(
         failure: .rateLimited(
@@ -66,3 +67,4 @@ struct TodayPaginationFailure: View {
         onRetry: {}
     )
 }
+#endif

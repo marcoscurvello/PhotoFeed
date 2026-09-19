@@ -124,6 +124,7 @@ struct PhotoCardView: View {
     }
 }
 
+#if DEBUG
 #Preview("Card") {
     PhotoCardView(
         photo: PhotoPreviewFixtures.photo,
@@ -153,3 +154,4 @@ struct PhotoCardView: View {
     )
     .padding(.horizontal, 20)
 }
+#endif

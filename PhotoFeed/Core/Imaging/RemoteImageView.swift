@@ -175,6 +175,7 @@ struct RemoteImageView<Placeholder: View>: View {
     }
 }
 
+#if DEBUG
 #Preview("Loading") {
     RemoteImageView(
         url: RemoteImagePreviewURLProtocol.loadingURL,
@@ -222,7 +223,6 @@ struct RemoteImageView<Placeholder: View>: View {
     .clipped()
 }
 
-#if DEBUG
 private struct RemoteImagePreviewPlaceholder: View {
     var body: some View {
         Rectangle()

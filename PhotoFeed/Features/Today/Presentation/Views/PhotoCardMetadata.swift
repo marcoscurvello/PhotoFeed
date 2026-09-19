@@ -32,6 +32,7 @@ struct PhotoCardMetadata: View {
     }
 }
 
+#if DEBUG
 #Preview {
     ZStack {
         Color.black
@@ -43,3 +44,4 @@ struct PhotoCardMetadata: View {
         .padding(20)
     }
 }
+#endif

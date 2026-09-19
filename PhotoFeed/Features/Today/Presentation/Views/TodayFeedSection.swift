@@ -48,6 +48,7 @@ struct TodayFeedSection: View {
     }
 }
 
+#if DEBUG
 #Preview("Loaded feed") {
     @Previewable
     @State var viewModel = TodayPreviewFixtures.makeViewModel()
@@ -104,3 +105,4 @@ struct TodayFeedSection: View {
     }
     .task { await viewModel.loadIfNeeded(bottomVisibleItemID: nil) }
 }
+#endif

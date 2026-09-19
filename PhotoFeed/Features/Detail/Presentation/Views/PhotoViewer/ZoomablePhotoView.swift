@@ -172,6 +172,7 @@ struct ZoomablePhotoView: View {
     }
 }
 
+#if DEBUG
 #Preview {
     @Previewable @State var isZoomed = false
 
@@ -183,3 +184,4 @@ struct ZoomablePhotoView: View {
     )
     .background(.black)
 }
+#endif

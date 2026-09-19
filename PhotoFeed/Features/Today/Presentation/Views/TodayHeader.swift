@@ -24,6 +24,8 @@ struct TodayHeader: View {
     }
 }
 
+#if DEBUG
 #Preview("Today header") {
     TodayHeader()
 }
+#endif

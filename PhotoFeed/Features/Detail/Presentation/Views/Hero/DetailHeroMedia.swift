@@ -55,6 +55,7 @@ struct DetailHeroMedia: View {
     }
 }
 
+#if DEBUG
 #Preview {
     ScrollView {
         DetailHeroMedia(
@@ -67,3 +68,4 @@ struct DetailHeroMedia: View {
         .frame(height: 460)
     }
 }
+#endif

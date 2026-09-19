@@ -68,6 +68,7 @@ struct DetailStatisticsSection: View {
     }
 }
 
+#if DEBUG
 #Preview("Loaded statistics") {
     @Previewable @State var viewModel = DetailPreviewFixtures.makeViewModel()
 
@@ -92,3 +93,4 @@ struct DetailStatisticsSection: View {
     DetailStatisticsSection(viewModel: viewModel)
         .task { await viewModel.load() }
 }
+#endif

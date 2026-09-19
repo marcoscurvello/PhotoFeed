@@ -34,6 +34,7 @@ struct TodayContent: View {
     }
 }
 
+#if DEBUG
 #Preview("Loaded content") {
     @Previewable @State var viewModel = TodayPreviewFixtures.makeViewModel()
     @Previewable @Namespace var transitionNamespace
@@ -51,3 +52,4 @@ struct TodayContent: View {
     }
     .task { await viewModel.loadIfNeeded(bottomVisibleItemID: nil) }
 }
+#endif

@@ -66,6 +66,7 @@ struct DetailHero: View {
     }
 }
 
+#if DEBUG
 #Preview {
     ScrollView {
         DetailHero(
@@ -75,3 +76,4 @@ struct DetailHero: View {
     }
     .ignoresSafeArea(.container, edges: .top)
 }
+#endif

@@ -85,6 +85,7 @@ struct DetailUserPhotosSection: View {
     }
 }
 
+#if DEBUG
 #Preview("Loaded user photos") {
     @Previewable @State var viewModel = DetailPreviewFixtures.makeViewModel()
 
@@ -117,3 +118,4 @@ struct DetailUserPhotosSection: View {
     )
     .task { await viewModel.load() }
 }
+#endif

@@ -36,6 +36,7 @@ struct DetailContent: View {
     }
 }
 
+#if DEBUG
 #Preview {
     @Previewable @State var viewModel = DetailPreviewFixtures.makeViewModel()
 
@@ -48,3 +49,4 @@ struct DetailContent: View {
     }
     .task { await viewModel.load() }
 }
+#endif
