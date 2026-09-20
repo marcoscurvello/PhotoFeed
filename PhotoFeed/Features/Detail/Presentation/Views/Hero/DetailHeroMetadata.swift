@@ -33,6 +33,7 @@ struct DetailHeroMetadata: View {
     }
 }
 
+#if DEBUG
 #Preview {
     DetailHeroMetadata(
         description: PhotoPreviewFixtures.detailPhoto.description,
@@ -41,3 +42,4 @@ struct DetailHeroMetadata: View {
     .padding(.top, 220)
     .background(.black)
 }
+#endif

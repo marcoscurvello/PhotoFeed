@@ -36,14 +36,13 @@ struct PhotoCardView: View {
                 .aspectRatio(style.aspectRatio, contentMode: .fit)
                 .overlay {
                     RemoteImageView(
-                        url: photo.imageURLs.regular,
+                        request: RemoteImageRequest(
+                            url: photo.imageURLs.regular,
+                            blurHash: photo.blurHash
+                        ),
                         pipeline: imagePipeline,
-                        blurHash: photo.blurHash,
-                        placeholderAspectRatio: photoAspectRatio
-                    ) {
-                        ProgressView()
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    }
+                        previewAspectRatio: photoAspectRatio
+                    )
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .clipped()
                 }
@@ -65,14 +64,20 @@ struct PhotoCardView: View {
                 }
                 .overlay(alignment: .topTrailing) {
                     if isSponsored {
-                        sponsoredBadge
+                        Text("Sponsored")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 7)
+                            .background(.black.opacity(0.55))
+                            .clipShape(Capsule())
                             .padding(style.sponsoredBadgePadding)
                     }
                 }
                 .clipShape(RoundedRectangle(cornerRadius: style.cornerRadius, style: .continuous))
                 .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(PhotoCardButtonStyle())
         .accessibilityElement(children: .combine)
         .accessibilityLabel(accessibilityLabel)
     }
@@ -85,14 +90,10 @@ struct PhotoCardView: View {
         return CGFloat(photo.width) / CGFloat(photo.height)
     }
 
-    private var sponsoredBadge: some View {
-        Text("Sponsored")
-            .font(.caption.weight(.semibold))
-            .foregroundStyle(.white)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 7)
-            .background(.black.opacity(0.55))
-            .clipShape(Capsule())
+    private struct PhotoCardButtonStyle: ButtonStyle {
+        func makeBody(configuration: Configuration) -> some View {
+            configuration.label
+        }
     }
 
     private var accessibilityLabel: LocalizedStringResource {
@@ -124,6 +125,7 @@ struct PhotoCardView: View {
     }
 }
 
+#if DEBUG
 #Preview("Card") {
     PhotoCardView(
         photo: PhotoPreviewFixtures.photo,
@@ -153,3 +155,4 @@ struct PhotoCardView: View {
     )
     .padding(.horizontal, 20)
 }
+#endif

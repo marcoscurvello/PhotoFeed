@@ -52,6 +52,7 @@ struct DetailUserPhotosFailure: View {
         .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
     }
 }
+#if DEBUG
 #Preview {
     @Previewable @State var viewModel = DetailPreviewFixtures.makeViewModel(userPhotosBehavior: .failure)
 
@@ -68,3 +69,4 @@ struct DetailUserPhotosFailure: View {
     )
     .padding()
 }
+#endif

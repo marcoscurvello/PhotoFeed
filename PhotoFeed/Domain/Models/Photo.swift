@@ -57,9 +57,9 @@ nonisolated struct Photo: Identifiable, Hashable, Sendable {
         self.webpageURL = webpageURL
     }
 
-    var aspectRatio: Double {
-        guard height > 0 else {
-            return 1
+    var aspectRatio: Double? {
+        guard width > 0, height > 0 else {
+            return nil
         }
 
         return Double(width) / Double(height)

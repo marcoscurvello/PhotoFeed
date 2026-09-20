@@ -46,6 +46,7 @@ struct TodayPhotoRow: View {
     }
 }
 
+#if DEBUG
 #Preview("Card") {
     @Previewable @Namespace var transitionNamespace
 
@@ -73,3 +74,4 @@ struct TodayPhotoRow: View {
         )
     }
 }
+#endif

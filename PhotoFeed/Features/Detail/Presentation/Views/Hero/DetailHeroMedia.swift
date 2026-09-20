@@ -17,18 +17,11 @@ struct DetailHeroMedia: View {
 
     var body: some View {
         RemoteImageView(
-            url: imageURL,
+            request: RemoteImageRequest(url: imageURL, blurHash: blurHash),
             pipeline: imagePipeline,
-            blurHash: blurHash,
-            placeholderAspectRatio: photoAspectRatio,
+            previewAspectRatio: photoAspectRatio,
             contentMode: contentMode
-        ) {
-            Rectangle()
-                .fill(.quaternary)
-                .overlay {
-                    ProgressView()
-                }
-        }
+        )
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .overlay {
             LinearGradient(
@@ -55,15 +48,17 @@ struct DetailHeroMedia: View {
     }
 }
 
+#if DEBUG
 #Preview {
     ScrollView {
         DetailHeroMedia(
             imageURL: PhotoPreviewFixtures.detailPhoto.imageURLs.regular,
             imagePipeline: PhotoPreviewFixtures.imagePipeline,
             blurHash: PhotoPreviewFixtures.detailPhoto.blurHash,
-            photoAspectRatio: CGFloat(PhotoPreviewFixtures.detailPhoto.aspectRatio),
+            photoAspectRatio: PhotoPreviewFixtures.detailPhoto.aspectRatio ?? 0.82,
             contentMode: .fit
         )
         .frame(height: 460)
     }
 }
+#endif

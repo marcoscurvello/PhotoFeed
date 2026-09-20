@@ -8,36 +8,41 @@
 import Foundation
 import UIKit
 
+enum RemoteImageContent {
+    case preview(UIImage)
+    case image(UIImage)
+}
+
 final actor RemoteImagePipeline {
 
     private enum Constants {
-        static let placeholderMemoryCapacity = 2 * 1024 * 1024
-        static let placeholderCountLimit = 256
+        static let blurHashMemoryCapacity = 2 * 1024 * 1024
+        static let blurHashCountLimit = 256
     }
 
-    private struct InFlightRequest {
+    private struct InFlightImageLoad {
         let id = UUID()
         let task: Task<UIImage, Error>
     }
 
-    private struct InFlightPlaceholder {
+    private struct InFlightBlurHashDecode {
         let id = UUID()
         let task: Task<UIImage?, Never>
     }
 
     private let session: URLSession
     private let cache: ImageMemoryCache
-    private let placeholderCache: BlurHashMemoryCache
-    private var inFlightRequests: [URL: InFlightRequest] = [:]
-    private var inFlightPlaceholders: [String: InFlightPlaceholder] = [:]
+    private let blurHashCache: BlurHashMemoryCache
+    private var inFlightImageLoads: [URL: InFlightImageLoad] = [:]
+    private var inFlightBlurHashDecodes: [String: InFlightBlurHashDecode] = [:]
 
-    init(session: URLSession = .shared, memoryCapacity: Int = 50 * 1024 * 1024) {
+    init(session: URLSession = .shared, memoryCapacity: Int = 200 * 1024 * 1024) {
         self.session = session
 
         cache = ImageMemoryCache(memoryCapacity: memoryCapacity)
-        placeholderCache = BlurHashMemoryCache(
-            memoryCapacity: Constants.placeholderMemoryCapacity,
-            countLimit: Constants.placeholderCountLimit
+        blurHashCache = BlurHashMemoryCache(
+            memoryCapacity: Constants.blurHashMemoryCapacity,
+            countLimit: Constants.blurHashCountLimit
         )
     }
 
@@ -46,29 +51,45 @@ final actor RemoteImagePipeline {
         cache.image(for: url)
     }
 
-    /// Returns an already decoded BlurHash placeholder without starting work.
-    nonisolated func cachedPlaceholder(for blurHash: String) -> UIImage? {
-        placeholderCache.image(for: blurHash)
+    /// Returns an already decoded BlurHash image without starting work.
+    nonisolated func cachedBlurHashImage(for blurHash: String) -> UIImage? {
+        blurHashCache.image(for: blurHash)
     }
 
-    /// Decodes a compact 32×32 BlurHash placeholder, coalescing concurrent work.
-    func placeholder(for blurHash: String) async -> UIImage? {
-        if let cachedImage = placeholderCache.image(for: blurHash) {
+    /// Returns the best content that is immediately available for a request.
+    ///
+    /// This is a rendering fast path only. `updates(for:)` remains the source of
+    /// truth for loading and must still be consumed by the view.
+    nonisolated func cachedContent(for request: RemoteImageRequest) -> RemoteImageContent? {
+        if let image = cache.image(for: request.url) {
+            return .image(image)
+        }
+
+        if let blurHash = request.blurHash, let image = blurHashCache.image(for: blurHash) {
+            return .preview(image)
+        }
+
+        return nil
+    }
+
+    /// Decodes a compact 32×32 BlurHash image, coalescing concurrent work.
+    func blurHashImage(for blurHash: String) async -> UIImage? {
+        if let cachedImage = blurHashCache.image(for: blurHash) {
             return cachedImage
         }
 
-        if let existingPlaceholder = inFlightPlaceholders[blurHash] {
-            return await resolve(existingPlaceholder, for: blurHash)
+        if let existingDecode = inFlightBlurHashDecodes[blurHash] {
+            return await resolve(existingDecode, for: blurHash)
         }
 
-        let placeholder = InFlightPlaceholder(
+        let decode = InFlightBlurHashDecode(
             task: Task.detached(priority: .userInitiated) {
                 BlurHashDecoder.decode(blurHash)
             }
         )
-        inFlightPlaceholders[blurHash] = placeholder
+        inFlightBlurHashDecodes[blurHash] = decode
 
-        return await resolve(placeholder, for: blurHash)
+        return await resolve(decode, for: blurHash)
     }
 
     func image(for url: URL) async throws -> UIImage {
@@ -76,14 +97,35 @@ final actor RemoteImagePipeline {
             return cachedImage
         }
 
-        if let existingRequest = inFlightRequests[url] {
-            return try await resolve(existingRequest, for: url)
+        if let existingLoad = inFlightImageLoads[url] {
+            return try await resolve(existingLoad, for: url)
         }
 
-        let request = InFlightRequest(task: makeRequestTask(for: url))
+        let load = InFlightImageLoad(task: makeImageLoadTask(for: url))
 
-        inFlightRequests[url] = request
-        return try await resolve(request, for: url)
+        inFlightImageLoads[url] = load
+        return try await resolve(load, for: url)
+    }
+
+    /// Emits the best available preview followed by the final image.
+    ///
+    /// The stream is consumer-scoped: cancelling iteration stops delivery to that
+    /// consumer but leaves the pipeline's shared image and BlurHash work intact.
+    func updates(for request: RemoteImageRequest) -> AsyncThrowingStream<RemoteImageContent, Error> {
+        AsyncThrowingStream { continuation in
+            let deliveryTask = Task { [weak self] in
+                guard let self else {
+                    continuation.finish()
+                    return
+                }
+
+                await self.produceUpdates(for: request, continuation: continuation)
+            }
+
+            continuation.onTermination = { @Sendable _ in
+                deliveryTask.cancel()
+            }
+        }
     }
 
     /// Starts image requests for the supplied URLs when they are not cached or in flight.
@@ -92,38 +134,38 @@ final actor RemoteImagePipeline {
     /// window without waiting for network or image decoding work to finish.
     func prefetch(_ urls: [URL]) {
         for url in urls {
-            guard cache.image(for: url) == nil, inFlightRequests[url] == nil else {
+            guard cache.image(for: url) == nil, inFlightImageLoads[url] == nil else {
                 continue
             }
 
-            let request = InFlightRequest(task: makeRequestTask(for: url))
-            inFlightRequests[url] = request
+            let load = InFlightImageLoad(task: makeImageLoadTask(for: url))
+            inFlightImageLoads[url] = load
 
-            Task { [weak self, request] in
-                _ = try? await self?.resolve(request, for: url)
+            Task { [weak self, load] in
+                _ = try? await self?.resolve(load, for: url)
             }
         }
     }
 
     func removeCachedData(for url: URL) {
         cache.removeImage(for: url)
-        inFlightRequests.removeValue(forKey: url)?.task.cancel()
+        inFlightImageLoads.removeValue(forKey: url)?.task.cancel()
     }
 
     func removeAllCachedData() {
         cache.removeAllImages()
-        placeholderCache.removeAllImages()
+        blurHashCache.removeAllImages()
 
-        let requests = Array(inFlightRequests.values)
-        inFlightRequests.removeAll()
-        requests.forEach { $0.task.cancel() }
+        let imageLoads = Array(inFlightImageLoads.values)
+        inFlightImageLoads.removeAll()
+        imageLoads.forEach { $0.task.cancel() }
 
-        let placeholders = Array(inFlightPlaceholders.values)
-        inFlightPlaceholders.removeAll()
-        placeholders.forEach { $0.task.cancel() }
+        let blurHashDecodes = Array(inFlightBlurHashDecodes.values)
+        inFlightBlurHashDecodes.removeAll()
+        blurHashDecodes.forEach { $0.task.cancel() }
     }
 
-    private func makeRequestTask(for url: URL) -> Task<UIImage, Error> {
+    private func makeImageLoadTask(for url: URL) -> Task<UIImage, Error> {
         let session = session
 
         return Task {
@@ -142,37 +184,107 @@ final actor RemoteImagePipeline {
         }
     }
 
-    private func resolve(_ request: InFlightRequest, for url: URL) async throws -> UIImage {
+    private func resolve(_ load: InFlightImageLoad, for url: URL) async throws -> UIImage {
         do {
-            let image = try await request.task.value
+            let image = try await load.task.value
 
-            if inFlightRequests[url]?.id == request.id {
+            if inFlightImageLoads[url]?.id == load.id {
                 cache.insert(image, for: url)
-                inFlightRequests[url] = nil
+                inFlightImageLoads[url] = nil
             }
 
             return image
         } catch {
-            if inFlightRequests[url]?.id == request.id {
-                inFlightRequests[url] = nil
+            if inFlightImageLoads[url]?.id == load.id {
+                inFlightImageLoads[url] = nil
             }
 
             throw error
         }
     }
 
-    private func resolve(_ placeholder: InFlightPlaceholder, for blurHash: String) async -> UIImage? {
-        let image = await placeholder.task.value
+    private func resolve(_ decode: InFlightBlurHashDecode, for blurHash: String) async -> UIImage? {
+        let image = await decode.task.value
 
-        if inFlightPlaceholders[blurHash]?.id == placeholder.id {
+        if inFlightBlurHashDecodes[blurHash]?.id == decode.id {
             if let image {
-                placeholderCache.insert(image, for: blurHash)
+                blurHashCache.insert(image, for: blurHash)
             }
 
-            inFlightPlaceholders[blurHash] = nil
+            inFlightBlurHashDecodes[blurHash] = nil
         }
 
         return image
+    }
+
+    private func produceUpdates(
+        for request: RemoteImageRequest,
+        continuation: AsyncThrowingStream<RemoteImageContent, Error>.Continuation
+    ) async {
+        if let image = cache.image(for: request.url) {
+            continuation.yield(.image(image))
+            continuation.finish()
+            return
+        }
+
+        let needsBlurHashDecode: Bool
+        if let blurHash = request.blurHash, let image = blurHashCache.image(for: blurHash) {
+            continuation.yield(.preview(image))
+            needsBlurHashDecode = false
+        } else {
+            needsBlurHashDecode = request.blurHash != nil
+        }
+
+        do {
+            try await withThrowingTaskGroup(of: RemoteImageContent?.self) { group in
+                if needsBlurHashDecode {
+                    group.addTask { [weak self] in
+                        guard let self, let blurHash = request.blurHash,
+                              let image = await self.blurHashImage(for: blurHash) else {
+                            return nil
+                        }
+
+                        return .preview(image)
+                    }
+                }
+
+                group.addTask { [weak self] in
+                    guard let self else {
+                        throw CancellationError()
+                    }
+
+                    return .image(try await self.image(for: request.url))
+                }
+
+                while let update = try await group.next() {
+                    guard !Task.isCancelled else {
+                        group.cancelAll()
+                        return
+                    }
+
+                    guard let update else {
+                        continue
+                    }
+
+                    switch update {
+                        case .preview:
+                            continuation.yield(update)
+
+                        case .image:
+                            group.cancelAll()
+                            continuation.yield(update)
+                            continuation.finish()
+                            return
+                    }
+                }
+            }
+        } catch {
+            guard !Task.isCancelled else {
+                return
+            }
+
+            continuation.finish(throwing: error)
+        }
     }
 
     nonisolated private static func prepareImage(from data: Data) async -> UIImage? {

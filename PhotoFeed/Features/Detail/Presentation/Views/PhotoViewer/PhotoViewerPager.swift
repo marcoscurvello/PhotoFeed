@@ -67,6 +67,7 @@ struct PhotoViewerPager: View {
     }
 }
 
+#if DEBUG
 #Preview {
     @Previewable @State var isZoomed = false
 
@@ -79,3 +80,4 @@ struct PhotoViewerPager: View {
     )
     .background(.black)
 }
+#endif

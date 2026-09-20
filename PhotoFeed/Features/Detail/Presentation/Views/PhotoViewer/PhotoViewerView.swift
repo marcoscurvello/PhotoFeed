@@ -97,6 +97,7 @@ struct PhotoViewerView: View {
 
 }
 
+#if DEBUG
 #Preview {
     PhotoViewerView(
         photos: PhotoPreviewFixtures.detailUserPhotos,
@@ -104,3 +105,4 @@ struct PhotoViewerView: View {
         imagePipeline: PhotoPreviewFixtures.imagePipeline
     )
 }
+#endif

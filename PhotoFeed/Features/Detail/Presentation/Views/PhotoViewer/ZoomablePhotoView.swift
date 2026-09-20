@@ -31,19 +31,17 @@ struct ZoomablePhotoView: View {
     var body: some View {
         GeometryReader { proxy in
             RemoteImageView(
-                url: DetailImageVariant.viewer.url(
-                    from: photo.imageURLs.raw,
-                    displayScale: displayScale
+                request: RemoteImageRequest(
+                    url: DetailImageVariant.viewer.url(
+                        from: photo.imageURLs.raw,
+                        displayScale: displayScale
+                    ),
+                    blurHash: photo.blurHash
                 ),
                 pipeline: imagePipeline,
-                blurHash: photo.blurHash,
-                placeholderAspectRatio: photoAspectRatio,
+                previewAspectRatio: photoAspectRatio,
                 contentMode: .fit
-            ) {
-                ProgressView()
-                    .tint(.white)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-            }
+            )
             .frame(
                 width: proxy.size.width,
                 height: proxy.size.height
@@ -172,6 +170,7 @@ struct ZoomablePhotoView: View {
     }
 }
 
+#if DEBUG
 #Preview {
     @Previewable @State var isZoomed = false
 
@@ -183,3 +182,4 @@ struct ZoomablePhotoView: View {
     )
     .background(.black)
 }
+#endif

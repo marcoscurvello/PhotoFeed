@@ -47,6 +47,7 @@ struct DetailView: View {
         }
     }
 }
+#if DEBUG
 #Preview("Loading detail") {
     NavigationStack {
         DetailView(
@@ -141,3 +142,4 @@ struct DetailView: View {
         )
     }
 }
+#endif

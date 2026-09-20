@@ -35,6 +35,7 @@ struct TodayPaginationFooter: View {
     }
 }
 
+#if DEBUG
 #Preview("Loading footer") {
     @Previewable
     @State var viewModel = TodayPreviewFixtures.makeViewModel(behavior: .loading)
@@ -59,3 +60,4 @@ struct TodayPaginationFooter: View {
         .task { await viewModel.loadIfNeeded(bottomVisibleItemID: nil) }
         .padding(.horizontal, 20)
 }
+#endif
