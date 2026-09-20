@@ -17,18 +17,11 @@ struct DetailHeroMedia: View {
 
     var body: some View {
         RemoteImageView(
-            url: imageURL,
+            request: RemoteImageRequest(url: imageURL, blurHash: blurHash),
             pipeline: imagePipeline,
-            blurHash: blurHash,
-            placeholderAspectRatio: photoAspectRatio,
+            previewAspectRatio: photoAspectRatio,
             contentMode: contentMode
-        ) {
-            Rectangle()
-                .fill(.quaternary)
-                .overlay {
-                    ProgressView()
-                }
-        }
+        )
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .overlay {
             LinearGradient(

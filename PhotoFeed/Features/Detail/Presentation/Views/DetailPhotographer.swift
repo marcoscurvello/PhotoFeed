@@ -14,7 +14,10 @@ struct DetailPhotographer: View {
 
     var body: some View {
         HStack(spacing: 14) {
-            RemoteImageView(url: user.avatarURL, pipeline: imagePipeline) {
+            RemoteImageView(
+                request: RemoteImageRequest(url: user.avatarURL),
+                pipeline: imagePipeline
+            ) {
                 Circle()
                     .fill(.quaternary)
                     .overlay {

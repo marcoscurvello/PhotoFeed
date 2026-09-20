@@ -36,14 +36,13 @@ struct PhotoCardView: View {
                 .aspectRatio(style.aspectRatio, contentMode: .fit)
                 .overlay {
                     RemoteImageView(
-                        url: photo.imageURLs.regular,
+                        request: RemoteImageRequest(
+                            url: photo.imageURLs.regular,
+                            blurHash: photo.blurHash
+                        ),
                         pipeline: imagePipeline,
-                        blurHash: photo.blurHash,
-                        placeholderAspectRatio: photoAspectRatio
-                    ) {
-                        ProgressView()
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    }
+                        previewAspectRatio: photoAspectRatio
+                    )
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .clipped()
                 }

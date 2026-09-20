@@ -22,17 +22,16 @@ struct DetailUserPhoto: View {
                 .frame(width: 160, height: 205)
                 .overlay {
                     RemoteImageView(
-                        url: DetailImageVariant.userPhotoThumbnail.url(
-                            from: photo.imageURLs.raw,
-                            displayScale: displayScale
+                        request: RemoteImageRequest(
+                            url: DetailImageVariant.userPhotoThumbnail.url(
+                                from: photo.imageURLs.raw,
+                                displayScale: displayScale
+                            ),
+                            blurHash: photo.blurHash
                         ),
                         pipeline: imagePipeline,
-                        blurHash: photo.blurHash,
-                        placeholderAspectRatio: photoAspectRatio
-                    ) {
-                        ProgressView()
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    }
+                        previewAspectRatio: photoAspectRatio
+                    )
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .clipped()
                 }
